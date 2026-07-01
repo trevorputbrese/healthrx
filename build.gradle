@@ -1,0 +1,16 @@
+// Root aggregator build for HealthRx.
+// `./gradlew clean build` builds the React frontend (Vite), packages the compiled
+// assets into the Spring Boot boot jar, and produces a single deployable artifact at
+// backend/build/libs/healthrx.jar.
+//
+// Subprojects:
+//   :frontend - React/Vite/TypeScript SPA (node-gradle plugin drives the Vite build)
+//   :backend  - Spring Boot JSON API that serves /api/** and the built SPA assets
+
+tasks.register('printArtifact') {
+    group = 'help'
+    description = 'Prints the path of the deployable boot jar.'
+    doLast {
+        println "Deployable artifact: ${project(':backend').layout.buildDirectory.file('libs/healthrx.jar').get().asFile}"
+    }
+}

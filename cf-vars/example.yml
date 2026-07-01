@@ -1,0 +1,26 @@
+# Template for foundation-specific deployment values.
+# Copy to cf-vars/<foundation>.yml, fill in, then:
+#   cf push --vars-file cf-vars/<foundation>.yml
+#
+# The Postgres service instance is expected to already exist on the foundation and is
+# bound by name. postgres_service_offering / postgres_service_plan are only needed if you
+# must create the instance first (see README) and are not referenced by manifest.yml.
+
+app_name: healthrx
+route: healthrx.<your-apps-domain>
+
+# Phase 2 synthetic data generator app.
+generator_app_name: healthrx-generator
+generator_route: healthrx-generator.<your-apps-domain>
+
+# Java buildpack name on the target foundation (run `cf buildpacks`).
+# Tanzu foundations commonly use java_buildpack_offline; some use java_buildpack.
+buildpack: java_buildpack_offline
+
+# Names of the already-provisioned service instances to bind.
+postgres_service_instance: healthrx-postgres
+rabbitmq_service_instance: healthrx-rabbitmq
+
+# Only used for an optional manual `cf create-service` step; values vary by foundation.
+postgres_service_offering: postgres
+postgres_service_plan: on-demand

@@ -1,0 +1,38 @@
+# Local Postgres for HealthRx development. Works with Docker or Podman.
+#   docker compose up -d    (or: podman compose up -d)
+# The backend's default datasource (application.yml) points at this instance.
+services:
+  postgres:
+    image: postgres:16
+    container_name: healthrx-postgres
+    environment:
+      POSTGRES_DB: healthrx
+      POSTGRES_USER: healthrx
+      POSTGRES_PASSWORD: healthrx
+    ports:
+      - "5432:5432"
+    volumes:
+      - healthrx-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healthrx -d healthrx"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: healthrx-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: healthrx
+      RABBITMQ_DEFAULT_PASS: healthrx
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # management UI
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  healthrx-pgdata:

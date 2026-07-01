@@ -1,0 +1,50 @@
+# Foundation-neutral Cloud Foundry manifest for HealthRx.
+# All foundation-specific values come from a vars file: `cf push --vars-file cf-vars/<foundation>.yml`.
+# The app binds an already-provisioned Postgres service instance by name.
+---
+applications:
+  - name: ((app_name))
+    path: backend/build/libs/healthrx.jar
+    memory: 1G
+    disk_quota: 1G
+    instances: 1
+    buildpacks:
+      - ((buildpack))
+    health-check-type: http
+    # Liveness only — so a RabbitMQ blip degrades event ingestion without crash-looping the
+    # whole API (the read-only UI keeps serving from Postgres).
+    health-check-http-endpoint: /actuator/health/liveness
+    routes:
+      - route: ((route))
+    services:
+      - ((postgres_service_instance))
+      - ((rabbitmq_service_instance))
+    env:
+      # Pin the runtime JRE to 17 so behavior is identical across foundations.
+      JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 17.+ } }'
+      # Pinned demo clock. Set to "system" to use real wall-clock time instead.
+      HEALTHRX_CLOCK_FIXED_INSTANT: "2026-06-29T00:00:00Z"
+      # The API proxies the Simulation control panel to the generator app.
+      HEALTHRX_GENERATOR_URL: "https://((generator_route))"
+      # Modest JVM footprint for a 1G container.
+      JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"
+
+  # Phase 2 synthetic data generator — advances the simulated clock and publishes the ambient
+  # event stream. Bound to the same Postgres and RabbitMQ instances.
+  - name: ((generator_app_name))
+    path: generator/build/libs/healthrx-generator.jar
+    memory: 1G
+    disk_quota: 1G
+    instances: 1
+    buildpacks:
+      - ((buildpack))
+    health-check-type: http
+    health-check-http-endpoint: /actuator/health/liveness
+    routes:
+      - route: ((generator_route))
+    services:
+      - ((postgres_service_instance))
+      - ((rabbitmq_service_instance))
+    env:
+      JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 17.+ } }'
+      JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"

@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: healthrx-generator
+  # Local defaults (compose). On Cloud Foundry, java-cfenv maps the bound services to these.
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/healthrx}
+    username: ${SPRING_DATASOURCE_USERNAME:healthrx}
+    password: ${SPRING_DATASOURCE_PASSWORD:healthrx}
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:healthrx}
+    password: ${SPRING_RABBITMQ_PASSWORD:healthrx}
+
+server:
+  port: ${PORT:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+healthrx:
+  events:
+    exchange: healthrx.events
+    routing-prefix: healthrx.event.
+  generator:
+    # Ambient loop runs every real second; each tick advances the sim clock and may emit events.
+    tick-interval-ms: 1000
+
+logging:
+  level:
+    com.shields.healthrx.generator: INFO

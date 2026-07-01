@@ -1,0 +1,65 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.1'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.shields'
+version = '0.1.0'
+description = 'HealthRx specialty pharmacy care operations API'
+
+java {
+    // Target Java 17 bytecode for broad Cloud Foundry foundation compatibility, even when
+    // built with a newer JDK. The runtime JRE is pinned to 17 in manifest.yml.
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 17
+    options.encoding = 'UTF-8'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    // Derive spring.datasource.* from VCAP_SERVICES when bound to a Cloud Foundry service.
+    implementation 'io.pivotal.cfenv:java-cfenv-boot:3.1.5'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:rabbitmq'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+bootJar {
+    archiveFileName = 'healthrx.jar'
+}
+
+// Package the built frontend assets into the boot jar under /static so Spring Boot serves
+// the SPA from the same artifact as the API.
+def copyFrontend = tasks.register('copyFrontend', Copy) {
+    dependsOn ':frontend:viteBuild'
+    mustRunAfter tasks.named('processResources')
+    from(project(':frontend').layout.projectDirectory.dir('dist'))
+    into layout.buildDirectory.dir('resources/main/static')
+}
+
+// `classes` aggregates compiled output + processed resources consumed by bootJar.
+tasks.named('classes') { dependsOn copyFrontend }

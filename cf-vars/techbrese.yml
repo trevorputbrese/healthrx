@@ -1,0 +1,23 @@
+# techbrese.com foundation. Target before pushing:
+#   cf target -o shields-demo -s healthrx
+# (HealthRx lives in the `healthrx` space, NOT `pulserx`.)
+# Preconditions: both healthrx-postgres and healthrx-rabbitmq must already be provisioned in this
+# space (cf services) before `cf push` — the manifest binds both by name (Phase 2 uses RabbitMQ).
+
+app_name: healthrx
+route: healthrx.apps.techbrese.com
+
+# Phase 2 synthetic data generator app.
+generator_app_name: healthrx-generator
+generator_route: healthrx-generator.apps.techbrese.com
+
+# Java buildpack name on this foundation (cf buildpacks). techbrese uses the offline buildpack.
+buildpack: java_buildpack_offline
+
+postgres_service_instance: healthrx-postgres
+rabbitmq_service_instance: healthrx-rabbitmq
+
+# Reference only (instance already exists); adjust to the foundation's marketplace if you
+# ever need to recreate it.
+postgres_service_offering: postgres
+postgres_service_plan: on-demand

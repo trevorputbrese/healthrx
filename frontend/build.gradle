@@ -1,0 +1,44 @@
+// Frontend subproject: builds the React/Vite SPA into frontend/dist.
+// The node-gradle plugin downloads a pinned Node toolchain so the production build is
+// reproducible from a clean checkout regardless of the machine's local Node version.
+
+plugins {
+    id 'base'
+    id 'com.github.node-gradle.node' version '7.1.0'
+}
+
+node {
+    version = '20.18.1'
+    download = (project.findProperty('node.download') ?: 'true').toBoolean()
+    nodeProjectDir = file("$projectDir")
+}
+
+// `npm run build` -> frontend/dist
+def viteBuild = tasks.register('viteBuild', com.github.gradle.node.npm.task.NpmTask) {
+    group = 'build'
+    description = 'Builds the production SPA assets with Vite.'
+    dependsOn tasks.named('npmInstall')
+    npmCommand = ['run', 'build']
+    inputs.dir('src')
+    inputs.files('package.json', 'package-lock.json', 'index.html', 'vite.config.ts', 'tsconfig.json', 'tsconfig.node.json')
+    outputs.dir(layout.projectDirectory.dir('dist'))
+}
+
+tasks.named('build') { dependsOn viteBuild }
+
+// Run the Vitest component tests as part of `check` / `build`.
+def frontendTest = tasks.register('frontendTest', com.github.gradle.node.npm.task.NpmTask) {
+    group = 'verification'
+    description = 'Runs the frontend Vitest suite.'
+    dependsOn tasks.named('npmInstall')
+    npmCommand = ['test']
+    inputs.dir('src')
+    inputs.files('package.json', 'package-lock.json', 'vite.config.ts', 'tsconfig.app.json')
+    outputs.upToDateWhen { false }
+}
+
+tasks.named('check') { dependsOn frontendTest }
+
+tasks.named('clean', Delete) {
+    delete layout.projectDirectory.dir('dist')
+}
