@@ -1,9 +1,9 @@
 # Phase 3 Design — AI Agents, MCP Gateway & Model Observability
 
-Status: **3a implemented & deployed (2026-07-02)** — the Adherence Risk Agent, embedded MCP action
-server, gateway registration, Agents view, and the full approve beat are live and verified on CF
-(see **As-built notes** at the end). **3b (Access Workflow Agent + knowledge MCP) is designed, not
-built.** A third agent is possible later; nothing here precludes it.
+Status: **Phase 3 implemented & deployed (3a + 3b, 2026-07-02)** — both agents, the embedded MCP
+action server, the knowledge MCP server, gateway registration, and the Agents view are live and
+verified on CF (see **As-built notes** at the end). SSO remains staged (§4). A third agent is
+possible later; nothing here precludes it.
 
 Related docs: [architecture](architecture.md) · [data-model](data-model.md) ·
 [api-contracts](api-contracts.md) · [metric-definitions](metric-definitions.md) ·
@@ -520,3 +520,24 @@ Deltas and discoveries from the build/deploy — the design above otherwise ship
   pristine state with both agents paused.
 - **Gateway audit logs** are emitted by the managed gateway (not visible via `cf logs` on the
   service instance name) — view via Tanzu Hub / platform log aggregation during the demo.
+
+## 16. As-built notes (Part 3b, 2026-07-02)
+
+- **Access Workflow Agent** (`agents/access-workflow-agent/`, CF app `healthrx-access-agent`)
+  shipped per §6 with one deliberate delta: the LLM **rate cap is wall-clock (default 6
+  runs/minute)**, not per-sim-hour — at fast-forward speeds a sim-hour elapses in milliseconds,
+  so the cap that actually protects the LLM budget is real time. Per-scan cap (3) and baseline
+  suppression shipped as designed; re-baseline occurs on every pause→resume transition (which is
+  how a reset manifests to the agent, since reset pauses it).
+- **Knowledge MCP server** (`mcp-servers/knowledge/`, CF app `healthrx-knowledge-mcp`, internal
+  route only) serves curated fictional guidance for all 12 seeded medications + 4 disease states
+  via `get_medication_guidance` / `get_condition_guidance`; registered behind the gateway via the
+  manifest service binding. Both agents carry its tools (the Adherence prompt grounds outreach
+  scripts with it).
+- **Verified live:** baseline suppression recorded **39 seeded stuck episodes with zero LLM
+  calls** on first resume; `new-referral` → 3 audited SQL investigations → AUTO_APPLIED
+  recommendation + URGENT `[Agent]` task routed to the referral owner (task ↔ recommendation
+  linked by `task_id`); ambient aging past the thresholds → the next scan triaged newly-stuck
+  referrals (per-scan cap honored).
+- Emit-repair, scan-episode identity (UUIDv5 over agent/referral/rule/entered-at/decided-count),
+  and the one-open-task guard shipped as designed (§6).

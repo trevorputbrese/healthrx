@@ -14,6 +14,7 @@ public record AgentProperties(
         String gatewayUrl,
         String postgresEndpoint,
         String healthrxEndpoint,
+        String knowledgeEndpoint,
         int cooldownSimHours,
         long waitProcessedTimeoutMs) {
 }

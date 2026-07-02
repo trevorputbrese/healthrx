@@ -43,6 +43,24 @@ const pending: AgentRecommendation = {
   createdAt: '2026-06-29T00:00:00Z',
 };
 
+const autoApplied: AgentRecommendation = {
+  id: 'rec2',
+  agentName: 'access-workflow',
+  agentDisplayName: 'Access Workflow Agent',
+  patient: { id: 'pt2', displayName: 'Jordan Ellis' },
+  referralId: 'r2',
+  taskId: 'task1',
+  status: 'AUTO_APPLIED',
+  summary: 'PA pending 6 days for Oncora; payer follow-up routed',
+  recommendation: {
+    caseSummary: 'Jordan Ellis, Oncora (Oncology), PA pending 6 days with Atlas Commercial.',
+    nextAction: 'Call the payer about the pending prior authorization.',
+    task: { taskId: 'task1', title: 'Call Atlas about pending PA', priority: 'HIGH' },
+  },
+  trace: [{ step: 'trigger', detail: 'stuck referral: PA_PENDING' }],
+  createdAt: '2026-06-29T00:00:00Z',
+};
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe('AgentsPage', () => {
@@ -65,6 +83,29 @@ describe('AgentsPage', () => {
     expect((await screen.findAllByText('Adherence Risk Agent')).length).toBeGreaterThan(0);
     expect(screen.getByText('Resume agent')).toBeInTheDocument();
     expect(screen.getByText('Reach Marlowe about the missed Neuraxol refill')).toBeInTheDocument();
+  });
+
+  it('renders an AUTO_APPLIED access-agent action with its routed task', async () => {
+    const page: PageResponse<AgentRecommendation> = {
+      items: [autoApplied],
+      page: 0,
+      size: 25,
+      totalItems: 1,
+      totalPages: 1,
+    };
+    mockFetch({
+      '/api/lookups': SAMPLE_LOOKUPS,
+      '/api/agents/recommendations': page,
+      '/api/agents': agents,
+    });
+
+    renderWithProviders(<AgentsPage />);
+
+    fireEvent.click(await screen.findByText(/payer follow-up routed/));
+    expect(await screen.findByText(/Call the payer about the pending prior authorization/)).toBeInTheDocument();
+    expect(screen.getByText(/Call Atlas about pending PA/)).toBeInTheDocument();
+    // Autonomous actions have no approve button.
+    expect(screen.queryByText('Approve & apply')).not.toBeInTheDocument();
   });
 
   it('expands a pending recommendation to show the trace and approve action', async () => {

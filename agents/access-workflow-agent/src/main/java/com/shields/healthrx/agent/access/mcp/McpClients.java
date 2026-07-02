@@ -1,11 +1,11 @@
-package com.shields.healthrx.agent.adherence.mcp;
+package com.shields.healthrx.agent.access.mcp;
 
 import java.time.Duration;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.shields.healthrx.agent.adherence.config.AgentProperties;
+import com.shields.healthrx.agent.access.config.AgentProperties;
 
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
@@ -20,7 +20,7 @@ import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTranspor
 @Configuration
 public class McpClients {
 
-    public static final String USER_AGENT = "healthrx-adherence-risk-agent";
+    public static final String USER_AGENT = "healthrx-access-workflow-agent";
 
     @Bean(destroyMethod = "close")
     public McpSyncClient postgresMcp(AgentProperties props) {

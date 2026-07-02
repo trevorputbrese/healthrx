@@ -33,6 +33,7 @@ applications:
       HEALTHRX_GENERATOR_URL: "https://((generator_route))"
       # Phase 3: the API proxies agent approve/pause/status to the agent apps.
       HEALTHRX_ADHERENCE_AGENT_URL: "https://((adherence_agent_route))"
+      HEALTHRX_ACCESS_AGENT_URL: "https://((access_agent_route))"
       # Phase 3: per-agent shared secrets guarding the embedded MCP action tools until SSO.
       HEALTHRX_MCP_KEY_ADHERENCE: ((mcp_key_adherence))
       HEALTHRX_MCP_KEY_ACCESS: ((mcp_key_access))
@@ -61,6 +62,47 @@ applications:
       JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"
       HEALTHRX_MCP_GATEWAY_URL: ((mcp_gateway_url))
       HEALTHRX_MCP_KEY_ADHERENCE: ((mcp_key_adherence))
+
+  # Phase 3b Access Workflow Agent — autonomous low-stakes triage: senses ReferralCreated and
+  # scans for stuck referrals, then routes [Agent] tasks through the MCP gateway.
+  - name: ((access_agent_app_name))
+    path: agents/access-workflow-agent/build/libs/healthrx-access-workflow-agent.jar
+    memory: 1G
+    disk_quota: 1G
+    instances: 1
+    buildpacks:
+      - ((buildpack))
+    health-check-type: http
+    health-check-http-endpoint: /actuator/health/liveness
+    routes:
+      - route: ((access_agent_route))
+    services:
+      - ((rabbitmq_service_instance))
+      - ((access_llm_service_instance))
+    env:
+      JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 17.+ } }'
+      JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"
+      HEALTHRX_MCP_GATEWAY_URL: ((mcp_gateway_url))
+      HEALTHRX_MCP_KEY_ACCESS: ((mcp_key_access))
+
+  # Phase 3b knowledge MCP server — curated drug/disease guidance tools, registered behind the
+  # gateway (internal route only; nothing but the gateway calls it).
+  - name: ((knowledge_app_name))
+    path: mcp-servers/knowledge/build/libs/healthrx-knowledge-mcp.jar
+    memory: 768M
+    disk_quota: 1G
+    instances: 1
+    buildpacks:
+      - ((buildpack))
+    health-check-type: http
+    health-check-http-endpoint: /actuator/health/liveness
+    routes:
+      - route: ((knowledge_internal_route))
+    services:
+      - ((mcp_gateway_service_instance))
+    env:
+      JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 17.+ } }'
+      JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"
 
   # Phase 2 synthetic data generator — advances the simulated clock and publishes the ambient
   # event stream. Bound to the same Postgres and RabbitMQ instances.

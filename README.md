@@ -21,6 +21,7 @@ healthrx/
   frontend/   React + Vite + TypeScript SPA (TanStack Query, React Router, Recharts)
   generator/  Phase 2 synthetic data generator (Spring Boot) — publishes the ambient event stream
   agents/     Phase 3 AI agents (Spring Boot + Spring AI), one subdirectory + CF app per agent
+  mcp-servers/ Standalone MCP servers (knowledge: curated drug/disease guidance tools)
   cf-vars/    Foundation-specific deployment values (example.yml is the template)
   scripts/    Developer tooling (deterministic seed-data generator)
   manifest.yml, compose.yaml
@@ -105,8 +106,11 @@ events, investigates the patient by writing SQL through the **MCP gateway** → 
 instance, and posts a recommendation to the **Agents** view. A human approves; the agent then
 executes the plan (outreach + intervention + refill) through the HealthRx-embedded **MCP action
 tools** — idempotent per recommendation — and the patient's refill risk resolves HIGH → LOW.
-See [phase-3-design](phase-3-design.md). Part 3b (Access Workflow Agent + knowledge MCP server) is
-designed, not yet built.
+The **Access Workflow Agent** (`agents/access-workflow-agent/`) is the autonomous half: it triages
+new referrals and scans for stuck ones (baseline-suppressed so the seeded backlog never floods the
+feed), then routes `[Agent]` follow-up tasks to the referral owner — no approval needed, everything
+audited. A **knowledge MCP server** (`mcp-servers/knowledge/`) grounds both agents with curated
+drug/disease guidance. See [phase-3-design](phase-3-design.md).
 
 ## Test
 

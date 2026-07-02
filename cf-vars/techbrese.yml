@@ -16,6 +16,15 @@ adherence_agent_app_name: healthrx-adherence-agent
 adherence_agent_route: healthrx-adherence-agent.apps.techbrese.com
 adherence_llm_service_instance: healthrx-adherence-risk-agent-llm
 
+# Phase 3b Access Workflow Agent app.
+access_agent_app_name: healthrx-access-agent
+access_agent_route: healthrx-access-agent.apps.techbrese.com
+access_llm_service_instance: healthrx-access-workflow-agent-llm
+
+# Phase 3b knowledge MCP server (internal route only; path prefix = app name).
+knowledge_app_name: healthrx-knowledge-mcp
+knowledge_internal_route: healthrx-knowledge-mcp.apps.internal
+
 # MCP gateway (client-facing URL; registered servers live under /<app-name>/mcp).
 mcp_gateway_url: https://healthrx-mcp-gw.apps.techbrese.com
 mcp_gateway_service_instance: healthrx-mcp-gw

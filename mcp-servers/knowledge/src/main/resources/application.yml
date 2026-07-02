@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: healthrx-knowledge-mcp
+  ai:
+    mcp:
+      server:
+        name: healthrx-knowledge
+        version: 0.1.0
+        type: SYNC
+        protocol: STREAMABLE
+
+server:
+  port: ${PORT:8084}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true

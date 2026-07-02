@@ -216,13 +216,26 @@ function Proposal({ recommendation }: { recommendation: Record<string, unknown> 
   const intervention = recommendation?.intervention as { type?: string; rationale?: string } | undefined;
   const refill = recommendation?.refillPlan as { daysSupply?: number; note?: string } | undefined;
   const risk = recommendation?.riskExplanation as string | undefined;
-  if (!outreach && !intervention && !refill && !risk) {
+  // Access Workflow Agent shape (autonomous task routing).
+  const nextAction = recommendation?.nextAction as string | undefined;
+  const task = recommendation?.task as { taskId?: string; title?: string; priority?: string } | undefined;
+  if (!outreach && !intervention && !refill && !risk && !nextAction && !task) {
     return null;
   }
   return (
     <div className="agent-proposal">
       <div className="agent-trace-title">Proposed plan</div>
       {risk && <p className="agent-proposal-risk">{risk}</p>}
+      {nextAction && (
+        <div className="agent-proposal-item">
+          <strong>Next action:</strong> {nextAction}
+        </div>
+      )}
+      {task?.title && (
+        <div className="agent-proposal-item">
+          <strong>Task routed ({task.priority ?? 'MEDIUM'}):</strong> {task.title}
+        </div>
+      )}
       {outreach?.script && (
         <div className="agent-proposal-item">
           <strong>Outreach ({outreach.channel ?? 'PHONE'}):</strong> {outreach.script}

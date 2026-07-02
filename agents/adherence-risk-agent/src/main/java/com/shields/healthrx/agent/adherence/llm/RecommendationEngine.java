@@ -48,6 +48,10 @@ public class RecommendationEngine {
               clinical_interventions(id, patient_id, intervention_type, summary, occurred_at)
               referrals(id, patient_id, referral_number, current_status)
 
+            Ground your outreach script clinically: call get_medication_guidance for the
+            patient's medication (adherence importance, side effects, missed-dose guidance) and,
+            when useful, get_condition_guidance for their disease state.
+
             Then produce your recommendation: a short risk explanation grounded in what you found,
             a patient outreach script for a phone call (warm, specific to their medication and
             missed refill), a clinical intervention proposal (type ADHERENCE_COUNSELING unless the
@@ -59,10 +63,12 @@ public class RecommendationEngine {
 
     private final ChatClient chat;
     private final McpSyncClient postgres;
+    private final McpSyncClient knowledge;
 
-    public RecommendationEngine(ChatModel chatModel, McpSyncClient postgresMcp) {
+    public RecommendationEngine(ChatModel chatModel, McpSyncClient postgresMcp, McpSyncClient knowledgeMcp) {
         this.chat = ChatClient.builder(chatModel).build();
         this.postgres = postgresMcp;
+        this.knowledge = knowledgeMcp;
     }
 
     public Recommendation recommend(UUID patientId, UUID therapyId, UUID referralId, TraceRecorder trace) {
@@ -98,9 +104,9 @@ public class RecommendationEngine {
         }
     }
 
-    /** The Postgres MCP tools, wrapped so every model-issued query lands in the trace. */
+    /** The Postgres + knowledge MCP tools, wrapped so every model call lands in the trace. */
     private List<ToolCallback> recordingTools(TraceRecorder trace) {
-        ToolCallback[] raw = new SyncMcpToolCallbackProvider(List.of(postgres)).getToolCallbacks();
+        ToolCallback[] raw = new SyncMcpToolCallbackProvider(List.of(postgres, knowledge)).getToolCallbacks();
         return Arrays.stream(raw)
                 .map(tc -> (ToolCallback) new RecordingToolCallback(tc, trace))
                 .toList();
