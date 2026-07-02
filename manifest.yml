@@ -104,6 +104,28 @@ applications:
       JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 17.+ } }'
       JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"
 
+  # Postgres MCP server — read-only SQL tools (listSchemas/listTables/executeQuery/select) over
+  # the HealthRx database, vendored from github.com/luanvuhlu/mcp-server-postgres (MIT license;
+  # see mcp-servers/postgres/README-upstream.md) for demo self-containment. Registered behind the
+  # gateway (internal route only); no HTTP health-check override (defaults to CF's port check,
+  # as it did in the standalone repo).
+  - name: ((postgres_mcp_app_name))
+    path: mcp-servers/postgres/target/mcp-server-postgres-1.0.0-SNAPSHOT.jar
+    memory: 1G
+    disk_quota: 1G
+    instances: 1
+    buildpacks:
+      - ((buildpack))
+    routes:
+      - route: ((postgres_mcp_internal_route))
+    services:
+      - ((postgres_service_instance))
+      - ((mcp_gateway_service_instance))
+    env:
+      # This app targets Java 21 (the rest of HealthRx targets 17).
+      JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 21.+ } }'
+      JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"
+
   # Phase 2 synthetic data generator — advances the simulated clock and publishes the ambient
   # event stream. Bound to the same Postgres and RabbitMQ instances.
   - name: ((generator_app_name))

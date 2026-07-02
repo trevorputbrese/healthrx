@@ -21,7 +21,8 @@ healthrx/
   frontend/   React + Vite + TypeScript SPA (TanStack Query, React Router, Recharts)
   generator/  Phase 2 synthetic data generator (Spring Boot) — publishes the ambient event stream
   agents/     Phase 3 AI agents (Spring Boot + Spring AI), one subdirectory + CF app per agent
-  mcp-servers/ Standalone MCP servers (knowledge: curated drug/disease guidance tools)
+  mcp-servers/ Standalone MCP servers: knowledge/ (curated drug/disease guidance, Gradle) and
+              postgres/ (read-only DB tools, Maven — vendored fork, see its README-upstream.md)
   cf-vars/    Foundation-specific deployment values (example.yml is the template)
   scripts/    Developer tooling (deterministic seed-data generator)
   manifest.yml, compose.yaml

@@ -26,6 +26,10 @@ access_llm_service_instance: healthrx-access-workflow-agent-llm
 knowledge_app_name: healthrx-knowledge-mcp
 knowledge_internal_route: healthrx-knowledge-mcp.apps.internal
 
+# Postgres MCP server (vendored in mcp-servers/postgres; internal route only).
+postgres_mcp_app_name: healthrx-postgres-mcp-server
+postgres_mcp_internal_route: healthrx-postgres-mcp.apps.internal
+
 # MCP gateway. The client-facing URL is the gateway instance's dashboard URL
 # (`cf service healthrx-mcp-gw` after creating it). Registered servers live under
 # <gateway-url>/<app-name>/mcp.

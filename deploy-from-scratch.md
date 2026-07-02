@@ -1,8 +1,7 @@
 # Deploying HealthRx to a New Tanzu Platform for CF Foundation
 
 Everything the demo needs, from an empty org/space to the verified demo beats. Total: **5
-marketplace service instances** and **6 apps** (5 from this repo's manifest + the Postgres MCP
-server from its own repo).
+marketplace service instances** and **6 apps**, all built and pushed from this one repo.
 
 | # | App | Binds | Route |
 | --- | --- | --- | --- |
@@ -11,11 +10,12 @@ server from its own repo).
 | 3 | `healthrx-adherence-agent` | rabbitmq, adherence LLM | public |
 | 4 | `healthrx-access-agent` | rabbitmq, access LLM | public |
 | 5 | `healthrx-knowledge-mcp` | **mcp-gw** (registers `/healthrx-knowledge-mcp/mcp`) | internal only |
-| 6 | `healthrx-postgres-mcp-server` (separate repo) | postgres, **mcp-gw** (registers `/healthrx-postgres-mcp-server/mcp`) | internal only |
+| 6 | `healthrx-postgres-mcp-server` (`mcp-servers/postgres/`, Maven) | postgres, **mcp-gw** (registers `/healthrx-postgres-mcp-server/mcp`) | internal only |
 
-Prerequisites: `cf` CLI v8+, JDK 17+, this repo, the Postgres MCP server repo/jar, and a
-foundation with the **GenAI tile** (offerings `ai-models` + `mcp-gateway`), Postgres, and RabbitMQ
-in the marketplace, plus the shared `apps.internal` domain (standard).
+Prerequisites: `cf` CLI v8+, JDK 17+ (backend/agents/knowledge server) — app 6 targets Java 21,
+so JDK 21 too if you don't want to rely solely on the buildpack's JRE — and a foundation with the
+**GenAI tile** (offerings `ai-models` + `mcp-gateway`), Postgres, and RabbitMQ in the marketplace,
+plus the shared `apps.internal` domain (standard).
 
 ## 1. Target and provision the services (before any push)
 
@@ -49,37 +49,31 @@ cp cf-vars/example.yml cf-vars/<foundation>.yml
 ```
 
 Edit it: replace `<your-apps-domain>` in the routes, set `buildpack`, set `mcp_gateway_url` to the
-dashboard URL from step 1, and generate the two agent secrets (`openssl rand -hex 16` each).
-Leave the service-instance and internal-route names as-is (they match the commands above).
+dashboard URL from step 1, and generate the two agent secrets (`openssl rand -hex 16` each). Leave
+the service-instance, app-name, and internal-route values as-is (they match the commands above).
 
-## 3. Build and push the repo's five apps
+## 3. Build everything
 
 ```bash
-./gradlew clean build
+./gradlew clean build                              # apps 1-5 (backend, SPA, generator, 2 agents, knowledge server)
+(cd mcp-servers/postgres && ./mvnw -q package -DskipTests)   # app 6 (Postgres MCP server, Maven)
+```
+
+`mcp-servers/postgres` is a vendored fork of [luanvuhlu/mcp-server-postgres](https://github.com/luanvuhlu/mcp-server-postgres)
+(MIT license — see its `README-upstream.md`), kept on Maven since that's its native build; it
+isn't part of the Gradle multi-project, so it needs this one extra command.
+
+## 4. Push everything
+
+```bash
 cf push --vars-file cf-vars/<foundation>.yml
 ```
 
-One push does it all: the manifest binds every app to its services, and the two `healthrx-mcp-gw`
+One push does all six apps: the manifest binds each to its services, and the `healthrx-mcp-gw`
 bindings **are** the MCP-server registrations (binding an app to the gateway registers it under
-`/<app-name>/mcp`; that's why `healthrx` and `healthrx-knowledge-mcp` carry internal routes).
-Flyway migrates and seeds the database on the API's first start; both agents come up **paused**
-(by design — resume them from the Agents view).
-
-## 4. Push the Postgres MCP server (its own repo)
-
-It must have an **internal route** (the gateway requires one to register it) and both bindings:
-
-```bash
-cf push healthrx-postgres-mcp-server -p <its jar> --no-route \
-  --buildpack <java-buildpack> --no-start
-cf map-route healthrx-postgres-mcp-server apps.internal --hostname healthrx-postgres-mcp
-cf bind-service healthrx-postgres-mcp-server healthrx-postgres
-cf start healthrx-postgres-mcp-server
-cf bind-service healthrx-postgres-mcp-server healthrx-mcp-gw --wait
-```
-
-(Its read access to the HealthRx tables comes from the `V5` grant migration, which ran when
-`healthrx` first started — so push this after step 3, or just restart it afterwards.)
+`/<app-name>/mcp` — that's why three apps carry internal routes: the gateway requires one on any
+app it registers). Flyway migrates and seeds the database on the API's first start; both agents
+come up **paused** (by design — resume them from the Agents view).
 
 ## 5. Verify
 
@@ -105,12 +99,16 @@ appears. (Full presenter script: phase-3-design.md §10.)
 
 ## Gotchas (each cost us time once)
 
-- **"the bound application must have an internal route"** on a gateway bind → map an
-  `apps.internal` route to the app first, then rebind.
+- **"the bound application must have an internal route"** on a gateway bind → the app needs its
+  internal route mapped *before or in the same push as* the gateway binding; the manifest already
+  declares both together for the three registered apps, so a from-scratch push is unaffected —
+  this only bites if you add internal-route mapping after the fact on an already-pushed app.
 - **LLM plan must support tool calling**; the endpoint speaks OpenAI wire format but rejects
   `max_tokens` (Spring AI handles this) and only accepts default temperature.
 - **Plan/offering/buildpack names differ per foundation** — never assume; check `cf marketplace`
   and `cf buildpacks`.
+- **`mcp-servers/postgres` targets Java 21**, not 17 like the rest of the repo — its manifest
+  entry pins `JBP_CONFIG_OPEN_JDK_JRE` to `21.+` independently.
 - Gateway **audit logs** (`mcp.audit`) are emitted by the managed gateway — view them in Tanzu
   Hub / platform logging, not `cf logs` on the service instance.
 - SSO on the gateway is optional/deferred: everything runs unauthenticated with per-agent

@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: mcp-server-postgres
+  
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/postgres
+    username: postgres
+    password: your_password
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+  ai:
+    mcp:
+      server:
+        enabled: true
+        protocol: STREAMABLE
+
+logging:
+  level:
+    root: INFO
+    com.luanvv.mcp: DEBUG
+    org.springframework.ai: DEBUG
+    org.springframework.boot: INFO
+    org.springframework.web: INFO
+    org.springframework.jdbc: DEBUG
+    org.springframework.transaction: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,loggers
+  endpoint:
+    health:
+      show-details: always
+    loggers:
+      enabled: true
