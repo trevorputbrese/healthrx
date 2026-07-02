@@ -2,9 +2,8 @@
 # Copy to cf-vars/<foundation>.yml, fill in, then:
 #   cf push --vars-file cf-vars/<foundation>.yml
 #
-# The Postgres service instance is expected to already exist on the foundation and is
-# bound by name. postgres_service_offering / postgres_service_plan are only needed if you
-# must create the instance first (see README) and are not referenced by manifest.yml.
+# All service instances are expected to already exist on the foundation and are bound by
+# name — see deploy-from-scratch.md for the create-service commands and ordering.
 
 app_name: healthrx
 route: healthrx.<your-apps-domain>
@@ -13,13 +12,40 @@ route: healthrx.<your-apps-domain>
 generator_app_name: healthrx-generator
 generator_route: healthrx-generator.<your-apps-domain>
 
+# Phase 3a Adherence Risk Agent app.
+adherence_agent_app_name: healthrx-adherence-agent
+adherence_agent_route: healthrx-adherence-agent.<your-apps-domain>
+adherence_llm_service_instance: healthrx-adherence-risk-agent-llm
+
+# Phase 3b Access Workflow Agent app.
+access_agent_app_name: healthrx-access-agent
+access_agent_route: healthrx-access-agent.<your-apps-domain>
+access_llm_service_instance: healthrx-access-workflow-agent-llm
+
+# Phase 3b knowledge MCP server (internal route only; the gateway path prefix = app name).
+knowledge_app_name: healthrx-knowledge-mcp
+knowledge_internal_route: healthrx-knowledge-mcp.apps.internal
+
+# MCP gateway. The client-facing URL is the gateway instance's dashboard URL
+# (`cf service healthrx-mcp-gw` after creating it). Registered servers live under
+# <gateway-url>/<app-name>/mcp.
+mcp_gateway_url: https://healthrx-mcp-gw.<your-apps-domain>
+mcp_gateway_service_instance: healthrx-mcp-gw
+# Internal route the API needs so the gateway can register/reach its embedded MCP server.
+mcp_internal_route: healthrx-mcp.apps.internal
+
 # Java buildpack name on the target foundation (run `cf buildpacks`).
 # Tanzu foundations commonly use java_buildpack_offline; some use java_buildpack.
 buildpack: java_buildpack_offline
 
-# Names of the already-provisioned service instances to bind.
+# Names of the already-provisioned data service instances to bind.
 postgres_service_instance: healthrx-postgres
 rabbitmq_service_instance: healthrx-rabbitmq
+
+# Interim per-agent shared secrets for the embedded MCP action tools (until SSO).
+# Generate fresh ones per foundation: openssl rand -hex 16
+mcp_key_adherence: <openssl rand -hex 16>
+mcp_key_access: <openssl rand -hex 16>
 
 # Only used for an optional manual `cf create-service` step; values vary by foundation.
 postgres_service_offering: postgres

@@ -125,6 +125,10 @@ Migration/integration tests use Testcontainers. With Podman, ensure a machine is
 
 ## Deploy to Cloud Foundry
 
+**Deploying to a brand-new foundation?** Follow [deploy-from-scratch](deploy-from-scratch.md) —
+it lists every service to provision (Postgres, RabbitMQ, 2× ai-models, mcp-gateway), the
+create-service commands, the bindings, and the push order.
+
 Postgres is provisioned ahead of time and bound by name (it is **not** created by the deploy).
 
 ```bash
