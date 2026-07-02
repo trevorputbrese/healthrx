@@ -52,6 +52,21 @@ Edit it: replace `<your-apps-domain>` in the routes, set `buildpack`, set `mcp_g
 dashboard URL from step 1, and generate the two agent secrets (`openssl rand -hex 16` each). Leave
 the service-instance, app-name, and internal-route values as-is (they match the commands above).
 
+**Also resolve `genai_model_name` now — don't skip this.** Some foundations' `ai-models`
+credentials omit the model identifier entirely (see the gotcha below), and the agents will
+silently pick the wrong model without it. Check before building:
+
+```bash
+cf create-service-key healthrx-adherence-risk-agent-llm tmp-key
+cf service-key healthrx-adherence-risk-agent-llm tmp-key   # inspect the JSON
+cf delete-service-key healthrx-adherence-risk-agent-llm tmp-key -f
+```
+
+If `credentials.model_name` is present, you can leave `genai_model_name` at its placeholder (it's
+unused). If not — as with a `tanzu-gemma-*` plan, which only exposes `credentials.endpoint.*` —
+call the endpoint's `config_url` (or `GET <api_base>/v1/models`) with the key from above to find
+the advertised model id, and set `genai_model_name` to that exact string.
+
 ## 3. Build everything
 
 ```bash
@@ -105,6 +120,14 @@ appears. (Full presenter script: phase-3-design.md §10.)
   this only bites if you add internal-route mapping after the fact on an already-pushed app.
 - **LLM plan must support tool calling**; the endpoint speaks OpenAI wire format but rejects
   `max_tokens` (Spring AI handles this) and only accepts default temperature.
+- **`ai-models` credentials shape varies by foundation/plan.** One foundation's `tanzu-gemma-*`
+  plan exposed only `credentials.endpoint.{openai_api_base,api_key,name,config_url}` — no
+  top-level `api_base`/`api_key`/`wire_format`/`model_name` at all, unlike a `gpt-*` plan seen
+  elsewhere that had both. The app code reads from `credentials.endpoint.*` (present both times)
+  and gets the model id from the `genai_model_name` var / `GENAI_MODEL` env when
+  `credentials.model_name` is absent — this is why step 2 has you check the credentials and the
+  `config_url` *before* building. If an agent comes up with `reachable: true` but every
+  recommendation silently never appears, this is the first thing to check.
 - **Plan/offering/buildpack names differ per foundation** — never assume; check `cf marketplace`
   and `cf buildpacks`.
 - **`mcp-servers/postgres` targets Java 21**, not 17 like the rest of the repo — its manifest

@@ -1,0 +1,50 @@
+# tas-ndc.kuhn-labs.com foundation. Target before pushing:
+#   cf target -o solution-architects -s trevor
+# Shared space — do not touch factory-mcp-server* (unrelated user-provided services) or
+# cloudbeaver (unrelated app) also present here.
+
+app_name: healthrx
+route: healthrx.apps.tas-ndc.kuhn-labs.com
+
+# Phase 2 synthetic data generator app.
+generator_app_name: healthrx-generator
+generator_route: healthrx-generator.apps.tas-ndc.kuhn-labs.com
+
+# Phase 3a Adherence Risk Agent app.
+adherence_agent_app_name: healthrx-adherence-agent
+adherence_agent_route: healthrx-adherence-agent.apps.tas-ndc.kuhn-labs.com
+adherence_llm_service_instance: healthrx-adherence-risk-agent-llm
+
+# Phase 3b Access Workflow Agent app.
+access_agent_app_name: healthrx-access-agent
+access_agent_route: healthrx-access-agent.apps.tas-ndc.kuhn-labs.com
+access_llm_service_instance: healthrx-access-workflow-agent-llm
+
+# Phase 3b knowledge MCP server (internal route only; the gateway path prefix = app name).
+knowledge_app_name: healthrx-knowledge-mcp
+knowledge_internal_route: healthrx-knowledge-mcp.apps.internal
+
+# Postgres MCP server (vendored in mcp-servers/postgres; internal route only).
+postgres_mcp_app_name: healthrx-postgres-mcp-server
+postgres_mcp_internal_route: healthrx-postgres-mcp.apps.internal
+
+# MCP gateway (client-facing URL = the gateway instance's dashboard url).
+mcp_gateway_url: https://healthrx-mcp-gw.apps.tas-ndc.kuhn-labs.com
+mcp_gateway_service_instance: healthrx-mcp-gw
+mcp_internal_route: healthrx-mcp.apps.internal
+
+# This foundation's ai-models plan (tanzu-gemma-4-31B-it-qat) does not carry model_name in its
+# VCAP_SERVICES credentials, only endpoint.config_url/advertisedModels — discovered via a service
+# key: GET <endpoint.config_url> -> advertisedModels[0].name.
+genai_model_name: google/gemma-4-31B-it-qat-w4a16-ct
+
+buildpack: java_buildpack_offline
+
+postgres_service_instance: healthrx-postgres
+rabbitmq_service_instance: healthrx-rabbitmq
+
+mcp_key_adherence: b364a54063305f03672842b2211ffdcc
+mcp_key_access: 8b8cc76e6d3ebfff72e055a25abbd097
+
+postgres_service_offering: postgres
+postgres_service_plan: on-demand-postgres-db

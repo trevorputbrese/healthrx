@@ -62,6 +62,9 @@ applications:
       JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"
       HEALTHRX_MCP_GATEWAY_URL: ((mcp_gateway_url))
       HEALTHRX_MCP_KEY_ADHERENCE: ((mcp_key_adherence))
+      # Only used when the ai-models binding doesn't carry model_name in its credentials (some
+      # foundations only expose it via the endpoint's config_url, not VCAP_SERVICES).
+      GENAI_MODEL: ((genai_model_name))
 
   # Phase 3b Access Workflow Agent — autonomous low-stakes triage: senses ReferralCreated and
   # scans for stuck referrals, then routes [Agent] tasks through the MCP gateway.
@@ -84,6 +87,7 @@ applications:
       JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"
       HEALTHRX_MCP_GATEWAY_URL: ((mcp_gateway_url))
       HEALTHRX_MCP_KEY_ACCESS: ((mcp_key_access))
+      GENAI_MODEL: ((genai_model_name))
 
   # Phase 3b knowledge MCP server — curated drug/disease guidance tools, registered behind the
   # gateway (internal route only; nothing but the gateway calls it).

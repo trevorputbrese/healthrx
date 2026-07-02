@@ -51,6 +51,12 @@ rabbitmq_service_instance: healthrx-rabbitmq
 mcp_key_adherence: <openssl rand -hex 16>
 mcp_key_access: <openssl rand -hex 16>
 
+# The model identifier to send in chat completion requests. Only takes effect if the ai-models
+# binding's credentials don't carry model_name directly (varies by foundation/plan) — check via
+# `cf service-key <llm-instance> <key-name>` first; if absent, create a service key and call the
+# endpoint's config_url (or GET <api_base>/v1/models) to find the advertised model id.
+genai_model_name: <model-id-from-config_url-or-v1-models>
+
 # Only used for an optional manual `cf create-service` step; values vary by foundation.
 postgres_service_offering: postgres
 postgres_service_plan: on-demand
