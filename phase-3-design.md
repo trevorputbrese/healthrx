@@ -97,7 +97,7 @@ flowchart LR
     subgraph GW["healthrx-mcp-gw (MCP gateway)"]
       PG["/postgres/ → healthrx-postgres-mcp-server\n(read tools)"]
       HRX["/healthrx/ → HealthRx-embedded MCP\n(action tools, scoped)"]
-      KNW["/knowledge/ → knowledge MCP (3b)\n(drug/disease reference)"]
+      KNW["/knowledge/ → healthrx-knowledge-mcp\n(drug/disease reference)"]
     end
     ADH & AGW -- "all reads + writes\n(audited tool calls)" --> GW
     HRX --> API

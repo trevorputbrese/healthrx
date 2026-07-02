@@ -56,6 +56,87 @@ flowchart LR
     Platform --> GW
 ```
 
+## Full System Architecture (As Built)
+
+Phases 1-3 are all implemented and deployed. This is the complete picture — six Cloud Foundry
+apps and five marketplace service instances — in one diagram, superseding the incremental
+per-phase sketches above (kept for their historical narrative).
+
+```mermaid
+flowchart TB
+    Browser["React SPA"] --> API
+
+    subgraph Apps["Cloud Foundry apps"]
+        API["HealthRx API<br/>+ embedded MCP actions"]
+        Gen["Generator"]
+        Adh["Adherence Risk Agent<br/>recommend-only"]
+        Acc["Access Workflow Agent<br/>autonomous"]
+    end
+
+    subgraph Data["Messaging & data (marketplace)"]
+        MQ["RabbitMQ<br/>topic exchange"]
+        PG[("Postgres")]
+    end
+
+    subgraph AI["Reasoning (marketplace, one instance per agent)"]
+        LLM1["ai-models<br/>adherence instance"]
+        LLM2["ai-models<br/>access instance"]
+    end
+
+    subgraph GWSub["MCP gateway (marketplace) + backing servers"]
+        GW["MCP Gateway<br/>audited routing"]
+        PGMCP["Postgres MCP server<br/>read-only SQL"]
+        KMCP["Knowledge MCP server<br/>drug/disease guidance"]
+        HMCP["HealthRx action tools<br/>embedded in the API"]
+        GW --> PGMCP
+        GW --> KMCP
+        GW --> HMCP
+    end
+
+    Obs["Platform observability<br/>Tanzu Hub"]
+
+    Gen -->|publishes| MQ
+    MQ -->|consumes| API
+    MQ <-->|"senses RefillMissed, emits recs"| Adh
+    MQ <-->|"senses ReferralCreated, emits recs"| Acc
+    API <--> PG
+    Gen <--> PG
+
+    Adh --> LLM1
+    Acc --> LLM2
+    Adh -->|reads + acts| GW
+    Acc -->|reads + acts| GW
+
+    PGMCP -.->|read-only grant| PG
+    HMCP -.->|domain services| PG
+
+    GW -.->|audit logs| Obs
+    LLM1 -.->|token usage| Obs
+    LLM2 -.->|token usage| Obs
+```
+
+Notes that don't fit neatly into the boxes above:
+
+- **One `ai-models` instance per agent, not shared** — so token usage/latency attribute per
+  agent on the platform dashboards, not just per app.
+- **Binding an app to the MCP gateway *is* how it registers** — that's why exactly three apps
+  (`healthrx`, `healthrx-knowledge-mcp`, `healthrx-postgres-mcp-server`) sit behind it, each
+  under its own `/<app-name>/mcp` path, and nothing else calls them directly.
+- **Agents have no direct Postgres binding, by design** — every read and write goes through the
+  gateway as an audited MCP tool call. The Postgres MCP server and HealthRx's embedded action
+  server both ultimately touch the same database (via a read-only grant for the former, the
+  existing domain services for the latter), which is why both are shown reaching into Postgres
+  even though agents never do so directly.
+- **Interim auth**: agent identity at the gateway is carried by an `X-Agent-Id` / `X-Agent-Key`
+  header pair rather than a token, until an SSO/OIDC service is confirmed available (see
+  [phase-3-design](phase-3-design.md) §4) — same audited path either way.
+- `ai-models` reports token usage/latency straight to the same platform observability dashboards
+  the gateway's audit logs land in — two feeds, one destination.
+
+Full component-by-component detail (data model, event vocabulary, guardrails, build/deploy) lives
+in [phase-2-design](phase-2-design.md) and [phase-3-design](phase-3-design.md); a from-scratch
+deploy walkthrough is in [deploy-from-scratch](deploy-from-scratch.md).
+
 ## Suggested Repository Layout
 
 ```text
