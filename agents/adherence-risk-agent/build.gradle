@@ -1,0 +1,50 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.1'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.shields'
+version = '0.1.0'
+description = 'HealthRx Adherence Risk Agent (Phase 3a) — senses RefillMissed, reasons via a marketplace LLM, reads and acts through the MCP gateway'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 17
+    options.encoding = 'UTF-8'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation platform('org.springframework.ai:spring-ai-bom:1.1.8')
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // Reason: marketplace ai-models binding is OpenAI wire format (phase-3-design.md §11 spike 1).
+    implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+    // Read + act: MCP clients to the gateway (built programmatically for header control).
+    implementation 'org.springframework.ai:spring-ai-mcp'
+    implementation 'io.modelcontextprotocol.sdk:mcp'
+
+    // Derive spring.rabbitmq.* from VCAP_SERVICES on Cloud Foundry (no Postgres binding by design).
+    implementation 'io.pivotal.cfenv:java-cfenv-boot:3.1.5'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+bootJar {
+    archiveFileName = 'healthrx-adherence-risk-agent.jar'
+}

@@ -14,6 +14,7 @@ import com.shields.healthrx.domain.ReferralStatus;
 import com.shields.healthrx.domain.WorkflowEventType;
 import com.shields.healthrx.metric.MetricCalculations;
 import com.shields.healthrx.metric.RefillRiskCalculator;
+import com.shields.healthrx.repo.AgentRecommendationRepository;
 import com.shields.healthrx.repo.CareTeamRepository;
 import com.shields.healthrx.repo.QueueFilter;
 import com.shields.healthrx.repo.ReferralRepository;
@@ -37,15 +38,18 @@ public class ReferralService {
     private final CareTeamRepository careTeam;
     private final TherapyRepository therapies;
     private final RefillRiskService riskService;
+    private final AgentRecommendationRepository agentRecommendations;
     private final EventLog events;
     private final AppTime time;
 
     public ReferralService(ReferralRepository referrals, CareTeamRepository careTeam, TherapyRepository therapies,
-                           RefillRiskService riskService, EventLog events, AppTime time) {
+                           RefillRiskService riskService, AgentRecommendationRepository agentRecommendations,
+                           EventLog events, AppTime time) {
         this.referrals = referrals;
         this.careTeam = careTeam;
         this.therapies = therapies;
         this.riskService = riskService;
+        this.agentRecommendations = agentRecommendations;
         this.events = events;
         this.time = time;
     }
@@ -106,7 +110,8 @@ public class ReferralService {
                 milestones, financials, metrics,
                 referrals.openTasksForReferral(id),
                 referrals.recentNotes(id, 10),
-                referrals.statusHistory(id));
+                referrals.statusHistory(id),
+                agentRecommendations.countPendingForReferral(id));
     }
 
     @Transactional

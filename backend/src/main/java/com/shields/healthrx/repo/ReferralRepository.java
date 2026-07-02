@@ -247,6 +247,13 @@ public class ReferralRepository {
 
     // --- Writes ---
 
+    /** The referral's owning care-team member (assignee for agent-created tasks). */
+    public Optional<UUID> ownerOf(UUID id) {
+        return jdbc.query("select owner_id from referrals where id = :id",
+                new MapSqlParameterSource("id", id), (rs, i) -> Columns.uuid(rs, "owner_id"))
+                .stream().findFirst();
+    }
+
     public Optional<State> loadState(UUID id) {
         String sql = """
                 select current_status, therapy_id, benefits_investigation_started_at, pa_submitted_at,

@@ -57,7 +57,8 @@ public final class PatientDtos {
             List<TherapySummary> therapies,
             List<TaskSummary> openTasks,
             List<OutreachItem> recentOutreach,
-            List<InterventionItem> recentInterventions) {
+            List<InterventionItem> recentInterventions,
+            int pendingAgentRecommendations) {
     }
 
     public record OutreachResult(

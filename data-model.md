@@ -356,3 +356,36 @@ Also seeded: two non-human `care_team_members` — **HealthRx System** (`0000000
 
 Phase 2 event write paths: `ReferralCreated` creates a referral (+ initial history row); `PrescriptionFilled` inserts a DISPENSED fill and rolls `therapies.current_refill_due_date`; `RefillDue` opens a `REFILL_FOLLOW_UP` task; `RefillMissed` inserts a MISSED fill and rolls the due date into the past (drives overdue/HIGH risk). Status-movement and engagement events reuse the Phase 1 centralized services. `therapies.current_refill_due_date` is the canonical refill-due value the risk calc reads (kept in sync by fills/misses).
 
+
+## Phase 3 Tables (V4/V5)
+
+### `agent_recommendations`
+
+One row per agent decision; written by the event consumer from `AgentRecommendationCreated`,
+updated by approve/dismiss and the `Applied` repair handler. `status` CHECK: `PENDING`, `APPLYING`,
+`APPLIED`, `AUTO_APPLIED`, `DISMISSED`, `SUPERSEDED`. Columns: `id` (PK, deterministic per
+trigger), `agent_name`, `patient_id` (required FK), `referral_id`/`therapy_id`/`task_id` (nullable
+FKs), `trigger_event_id`, `trigger_event_type`, `summary`, `recommendation` jsonb, `trace` jsonb,
+`created_at`, `applying_at` (wall-clock; measures the approve proxy window), `decided_at`,
+`decided_by_id` (FK, always a human — the owners lookup excludes non-human roles).
+
+### `agent_tool_calls`
+
+Apply-path idempotency ledger: PK `(recommendation_id, tool_name)`, `result` jsonb, `created_at`.
+Written in the same transaction as the domain insert by the embedded MCP action tools; a replay
+returns the stored result instead of re-executing. No FK to `agent_recommendations` (the Access
+agent's `create_task` legitimately precedes the consumer-side recommendation insert).
+
+### `agent_control`
+
+Durable per-agent kill switch: `agent_name` PK, `paused` (V4 seeds both agents paused),
+`updated_at`. The API upserts; agents read it per trigger via Postgres MCP and treat a missing row
+as paused.
+
+### Phase 3 actors, task type, and grants
+
+V4 seeds fixed-UUID agent actors `…0003` (Adherence Risk Agent) and `…0004` (Access Workflow
+Agent), role `AI Agent`; adds `ACCESS_FOLLOW_UP` to the `task_type` CHECK. Reset truncates the
+agent tables, restores all non-human actors, and pauses both agents. V5 grants SELECT on all
+public-schema tables (current + future) so the separately-bound Postgres MCP server role can read
+them — that role is read-only at the database level.

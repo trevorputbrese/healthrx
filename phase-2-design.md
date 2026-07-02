@@ -243,6 +243,11 @@ this is additive.
 
 ## 12. Open decisions (deferred, with leanings)
 
+> **Both resolved 2026-07-01 — see [phase-3-design](phase-3-design.md).** Agent writes go through
+> a **HealthRx-embedded MCP server** (Spring AI `@Tool`) behind the gateway, not plain REST; and
+> the **drug/disease knowledge MCP** is confirmed as a second (standalone) MCP server, built in
+> Phase 3b. Original framing kept below for the record.
+
 - **How agents act (REST vs. MCP-wrapped writes).** Reads via the Postgres MCP server are settled.
   For writes, leaning **agents call the HealthRx REST API** (it already validates transitions);
   alternative is exposing HealthRx actions as their own MCP server so writes are *also* SSO-tracked

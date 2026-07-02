@@ -36,18 +36,21 @@ public class EventApplicationService {
     private final FillService fillService;
     private final TaskService taskService;
     private final PatientService patientService;
+    private final AgentRecommendationService agentRecommendations;
     private final ReferralRepository referrals;
     private final ProcessedEventRepository processed;
     private final AppTime time;
 
     public EventApplicationService(ReferralIntakeService intake, ReferralService referralService,
             FillService fillService, TaskService taskService, PatientService patientService,
+            AgentRecommendationService agentRecommendations,
             ReferralRepository referrals, ProcessedEventRepository processed, AppTime time) {
         this.intake = intake;
         this.referralService = referralService;
         this.fillService = fillService;
         this.taskService = taskService;
         this.patientService = patientService;
+        this.agentRecommendations = agentRecommendations;
         this.referrals = referrals;
         this.processed = processed;
         this.time = time;
@@ -98,9 +101,8 @@ public class EventApplicationService {
                     reqUuid(p, "patientId"), uuid(p, "referralId"), actor(p),
                     EnumParsing.require(InterventionType.class, reqStr(p, "interventionType"), "interventionType"),
                     reqStr(p, "summary"), instant(p, "occurredAt", at));
-            case AGENT_RECOMMENDATION_CREATED, AGENT_RECOMMENDATION_APPLIED ->
-                    throw ApiException.unprocessable("AGENT_EVENT_PHASE3",
-                            "Agent events are not consumed in Phase 2.", Map.of("eventType", env.eventType()));
+            case AGENT_RECOMMENDATION_CREATED -> agentRecommendations.recordCreated(p, at);
+            case AGENT_RECOMMENDATION_APPLIED -> agentRecommendations.recordApplied(p, at);
         }
     }
 

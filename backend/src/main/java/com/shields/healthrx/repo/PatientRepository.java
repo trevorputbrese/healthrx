@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import com.shields.healthrx.domain.AgentName;
 import com.shields.healthrx.domain.OutreachChannel;
 import com.shields.healthrx.domain.OutreachOutcome;
 import com.shields.healthrx.domain.ReferralStatus;
@@ -233,6 +234,32 @@ public class PatientRepository {
                 new MapSqlParameterSource("id", patientId), (rs, i) -> new TimelineDtos.Item(
                         Columns.uuid(rs, "id"), "NOTE", Columns.instant(rs, "created_at"),
                         "Note added", rs.getString("body"), actor(rs), new LinkedHashMap<>()));
+    }
+
+    /** AGENT timeline items are derived from applied agent recommendations (phase-3-design.md §6). */
+    public List<TimelineDtos.Item> timelineAgent(UUID patientId) {
+        return jdbc.query("""
+                select r.id, r.agent_name, r.status, r.summary,
+                       coalesce(r.decided_at, r.created_at) as occurred_at,
+                       ct.display_name as decided_by_name
+                from agent_recommendations r
+                left join care_team_members ct on ct.id = r.decided_by_id
+                where r.patient_id = :id and r.status in ('APPLIED', 'AUTO_APPLIED')""",
+                new MapSqlParameterSource("id", patientId), (rs, i) -> {
+                    Map<String, Object> meta = new LinkedHashMap<>();
+                    meta.put("agentName", rs.getString("agent_name"));
+                    meta.put("status", rs.getString("status"));
+                    String decidedBy = rs.getString("decided_by_name");
+                    if (decidedBy != null) {
+                        meta.put("decidedBy", decidedBy);
+                    }
+                    NamedRef agentActor = AgentName.fromWire(rs.getString("agent_name"))
+                            .map(a -> new NamedRef(a.actorId(), a.displayName())).orElse(null);
+                    String title = "AUTO_APPLIED".equals(rs.getString("status"))
+                            ? "Agent action applied" : "Agent recommendation applied";
+                    return new TimelineDtos.Item(Columns.uuid(rs, "id"), "AGENT",
+                            Columns.instant(rs, "occurred_at"), title, rs.getString("summary"), agentActor, meta);
+                });
     }
 
     private static NamedRef actor(java.sql.ResultSet rs) throws java.sql.SQLException {

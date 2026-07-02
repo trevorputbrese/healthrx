@@ -5,6 +5,7 @@ import ReferralDetailPage from './pages/ReferralDetailPage';
 import PatientWorkbenchPage from './pages/PatientWorkbenchPage';
 import DashboardPage from './pages/DashboardPage';
 import LifecyclePage from './pages/LifecyclePage';
+import AgentsPage from './pages/AgentsPage';
 import { EmptyState } from './components/ui';
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="/referrals/:referralId" element={<ReferralDetailPage />} />
         <Route path="/patients/:patientId" element={<PatientWorkbenchPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/agents" element={<AgentsPage />} />
         <Route path="*" element={<EmptyState message="Page not found." />} />
       </Routes>
     </AppLayout>

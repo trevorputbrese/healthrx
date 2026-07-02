@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.shields.healthrx.config.ClockConfig;
+import com.shields.healthrx.domain.AgentName;
 import com.shields.healthrx.domain.SystemActors;
 
 /**
@@ -26,11 +27,15 @@ public class ResetService {
 
     private static final Logger log = LoggerFactory.getLogger(ResetService.class);
 
-    /** All data tables, wiped together (CASCADE handles FK order). Excludes simulation_state and flyway. */
+    /**
+     * All data tables, wiped together (CASCADE handles FK order). Excludes simulation_state,
+     * agent_control (upserted to paused instead), and flyway.
+     */
     private static final String TRUNCATE = """
             truncate table clinics, payers, care_team_members, medications, patients, therapies,
                 referrals, referral_status_history, referral_notes, tasks, outreach_events,
-                clinical_interventions, fills, processed_events cascade""";
+                clinical_interventions, fills, processed_events,
+                agent_recommendations, agent_tool_calls cascade""";
 
     private static final int DEFAULT_SPEED = 86400;
 
@@ -60,7 +65,7 @@ public class ResetService {
             return null;
         });
 
-        // 4. Restore the non-human actors (seeded by V3, not in the V2 seed script).
+        // 4. Restore the non-human actors (seeded by V3/V4, not in the V2 seed script).
         jdbc.update("""
                 insert into care_team_members (id, display_name, role, email, active, created_at)
                 values (?, 'HealthRx System', 'System', null, true, ?) on conflict (id) do nothing""",
@@ -69,7 +74,22 @@ public class ResetService {
                 insert into care_team_members (id, display_name, role, email, active, created_at)
                 values (?, 'Care Agent', 'AI Agent', null, true, ?) on conflict (id) do nothing""",
                 SystemActors.AGENT, anchorTs);
+        for (AgentName agent : AgentName.values()) {
+            jdbc.update("""
+                    insert into care_team_members (id, display_name, role, email, active, created_at)
+                    values (?, ?, 'AI Agent', null, true, ?) on conflict (id) do nothing""",
+                    agent.actorId(), agent.displayName(), anchorTs);
+        }
 
-        log.warn("DEMO RESET: data wiped and reseeded; simulation paused at {}", anchor);
+        // 5. Pause both agents (they resume explicitly from the Agents view; design §2 guardrail 5).
+        for (AgentName agent : AgentName.values()) {
+            jdbc.update("""
+                    insert into agent_control (agent_name, paused, updated_at)
+                    values (?, true, ?)
+                    on conflict (agent_name) do update set paused = true, updated_at = excluded.updated_at""",
+                    agent.wireName(), anchorTs);
+        }
+
+        log.warn("DEMO RESET: data wiped and reseeded; simulation paused at {}; agents paused", anchor);
     }
 }

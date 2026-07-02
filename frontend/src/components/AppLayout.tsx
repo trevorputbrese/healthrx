@@ -7,6 +7,7 @@ const NAV = [
   { to: '/queue', label: 'Queue' },
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/lifecycle', label: 'Referral Lifecycle' },
+  { to: '/agents', label: 'Agents' },
 ];
 
 export default function AppLayout({ children }: { children: ReactNode }) {

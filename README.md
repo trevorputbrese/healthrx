@@ -11,7 +11,7 @@ single Cloud Foundry application.
 > [app-overview](app-overview.md) · [product-brief](product-brief.md) · [architecture](architecture.md) ·
 > [data-model](data-model.md) · [api-contracts](api-contracts.md) ·
 > [metric-definitions](metric-definitions.md) · [phase-1-implementation-plan](phase-1-implementation-plan.md) ·
-> [phase-2-design](phase-2-design.md)
+> [phase-2-design](phase-2-design.md) · [phase-3-design](phase-3-design.md)
 
 ## Layout
 
@@ -20,6 +20,7 @@ healthrx/
   backend/    Spring Boot API (Spring Data JDBC, Flyway, Actuator) — also serves the built SPA + consumes events
   frontend/   React + Vite + TypeScript SPA (TanStack Query, React Router, Recharts)
   generator/  Phase 2 synthetic data generator (Spring Boot) — publishes the ambient event stream
+  agents/     Phase 3 AI agents (Spring Boot + Spring AI), one subdirectory + CF app per agent
   cf-vars/    Foundation-specific deployment values (example.yml is the template)
   scripts/    Developer tooling (deterministic seed-data generator)
   manifest.yml, compose.yaml
@@ -95,6 +96,17 @@ Drive it from the **Simulation** bar in the UI, or via the API proxy:
 **Reset the demo** to a pristine state any time with the **Reset demo** button (or
 `POST /api/admin/reset`): it pauses the simulation, wipes the data, re-applies the deterministic
 seed, and resets the clock to 2026-06-29.
+
+### Phase 3 — AI agents via the MCP gateway
+
+The **Adherence Risk Agent** (`agents/adherence-risk-agent/`, its own CF app) senses `RefillMissed`
+events, investigates the patient by writing SQL through the **MCP gateway** → Postgres MCP server
+(every query is an audited tool call), reasons with its own marketplace **`ai-models`** LLM
+instance, and posts a recommendation to the **Agents** view. A human approves; the agent then
+executes the plan (outreach + intervention + refill) through the HealthRx-embedded **MCP action
+tools** — idempotent per recommendation — and the patient's refill risk resolves HIGH → LOW.
+See [phase-3-design](phase-3-design.md). Part 3b (Access Workflow Agent + knowledge MCP server) is
+designed, not yet built.
 
 ## Test
 

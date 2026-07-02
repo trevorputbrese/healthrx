@@ -36,18 +36,24 @@ flowchart LR
     Browser["React SPA"] --> API
 ```
 
-Phase 3 adds agent apps and model services:
+Phase 3 adds agent apps, model services, and the MCP gateway (full design:
+[phase-3-design](phase-3-design.md)):
 
 ```mermaid
 flowchart LR
     Rabbit["RabbitMQ"] --> AgentA["Access Workflow Agent"]
     Rabbit --> AgentB["Adherence Risk Agent"]
-    AgentA --> Models["Tanzu AI Model Services"]
+    AgentA --> Models["Tanzu AI Model Services\n(one instance per agent)"]
     AgentB --> Models
-    AgentA --> API["HealthRx API"]
-    AgentB --> API
+    AgentA -- "read + act via MCP tools" --> GW["MCP Gateway (audited)"]
+    AgentB -- "read + act via MCP tools" --> GW
+    GW --> PGMCP["Postgres MCP server"]
+    GW --> HRXMCP["HealthRx action tools\n(embedded MCP server)"]
+    HRXMCP --> API["HealthRx API"]
     API --> DB[("Postgres")]
+    PGMCP --> DB
     Platform["Platform Observability"] --> Models
+    Platform --> GW
 ```
 
 ## Suggested Repository Layout

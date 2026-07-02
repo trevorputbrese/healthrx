@@ -54,6 +54,13 @@ class ResetServiceIT {
                 java.sql.Timestamp.from(Instant.parse("2026-09-01T00:00:00Z")));
         jdbc.update("insert into processed_events (event_id, event_type, source, status, processed_at) "
                 + "values (?, 'Test', 'test', 'APPLIED', now())", UUID.randomUUID());
+        // Dirty the Phase 3 agent state too: a recommendation + ledger row, and an un-paused agent.
+        jdbc.update("insert into agent_recommendations (id, agent_name, patient_id, status, summary, "
+                + "recommendation, created_at) select ?, 'adherence-risk', id, 'PENDING', 'test', "
+                + "'{}'::jsonb, now() from patients limit 1", UUID.randomUUID());
+        jdbc.update("insert into agent_tool_calls (recommendation_id, tool_name, result, created_at) "
+                + "values (?, 'log_outreach', '{}'::jsonb, now())", UUID.randomUUID());
+        jdbc.update("update agent_control set paused = false where agent_name = 'adherence-risk'");
         assertThat(count("fills")).isZero();
 
         reset.resetDemo();
@@ -64,10 +71,18 @@ class ResetServiceIT {
         assertThat(count("therapies")).isEqualTo(42);
         assertThat(count("fills")).isGreaterThan(0);
         assertThat(count("processed_events")).isZero();
-        // 8 seeded care team members + the System and Care Agent actors.
-        assertThat(count("care_team_members")).isEqualTo(10);
+        // 8 seeded care team members + System, Care Agent, and the two Phase 3 agent actors.
+        assertThat(count("care_team_members")).isEqualTo(12);
         assertThat(jdbc.queryForObject("select count(*) from care_team_members where id = ?",
                 Integer.class, SystemActors.SYSTEM)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from care_team_members where role = 'AI Agent'",
+                Integer.class)).isEqualTo(3);
+
+        // Phase 3 agent state: recommendations/ledger truncated, both agents paused (V4 + reset).
+        assertThat(count("agent_recommendations")).isZero();
+        assertThat(count("agent_tool_calls")).isZero();
+        assertThat(jdbc.queryForObject(
+                "select count(*) from agent_control where paused = true", Integer.class)).isEqualTo(2);
 
         // Clock reset + paused.
         assertThat(jdbc.queryForObject("select enabled from simulation_state where id = 1", Boolean.class)).isFalse();

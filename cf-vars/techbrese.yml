@@ -11,6 +11,21 @@ route: healthrx.apps.techbrese.com
 generator_app_name: healthrx-generator
 generator_route: healthrx-generator.apps.techbrese.com
 
+# Phase 3a Adherence Risk Agent app.
+adherence_agent_app_name: healthrx-adherence-agent
+adherence_agent_route: healthrx-adherence-agent.apps.techbrese.com
+adherence_llm_service_instance: healthrx-adherence-risk-agent-llm
+
+# MCP gateway (client-facing URL; registered servers live under /<app-name>/mcp).
+mcp_gateway_url: https://healthrx-mcp-gw.apps.techbrese.com
+mcp_gateway_service_instance: healthrx-mcp-gw
+mcp_internal_route: healthrx-mcp.apps.internal
+
+# Interim per-agent shared secrets for the embedded MCP action tools (replaced by SSO later).
+# Demo-only credentials, deliberately kept with the rest of the demo config.
+mcp_key_adherence: e9e20f0e9a4c3f0d3e885805f9d3feb8
+mcp_key_access: 8f5e04d7c5d667f8fe442361b4c42a55
+
 # Java buildpack name on this foundation (cf buildpacks). techbrese uses the offline buildpack.
 buildpack: java_buildpack_offline
 

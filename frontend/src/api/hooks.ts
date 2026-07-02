@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, qs } from './client';
 import type {
+  AgentRecommendation,
+  AgentsResponse,
   DashboardSummary,
   DashboardTrends,
   Lookups,
@@ -211,5 +213,48 @@ export function useResetDemo() {
     mutationFn: () => api.post('/api/admin/reset', {}),
     // Wipe + reseed touches everything: invalidate all queries so the whole UI refreshes.
     onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
+// --- Phase 3: Agents view (poll fast so decisions read as live on stage) ---
+const AGENTS_LIVE = 4000;
+
+export function useAgents() {
+  return useQuery({
+    queryKey: ['agents'],
+    queryFn: () => api.get<AgentsResponse>('/api/agents'),
+    refetchInterval: AGENTS_LIVE,
+  });
+}
+
+export function useAgentRecommendations(params: { status?: string; agent?: string; page?: number }) {
+  return useQuery({
+    queryKey: ['agent-recommendations', params],
+    queryFn: () =>
+      api.get<PageResponse<AgentRecommendation>>(
+        `/api/agents/recommendations${qs({ size: 25, ...params })}`,
+      ),
+    refetchInterval: AGENTS_LIVE,
+  });
+}
+
+export function useRecommendationDecision(kind: 'approve' | 'dismiss') {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, decidedById }: { id: string; decidedById: string }) =>
+      api.post<AgentRecommendation>(`/api/agents/recommendations/${id}/${kind}`, { decidedById }),
+    onSettled: () => {
+      // An applied recommendation changes risk, fills, outreach — refresh everything.
+      qc.invalidateQueries();
+    },
+  });
+}
+
+export function useAgentPause() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, paused }: { name: string; paused: boolean }) =>
+      api.post<{ agent: string; paused: boolean }>(`/api/agents/${name}/${paused ? 'pause' : 'resume'}`, {}),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['agents'] }),
   });
 }

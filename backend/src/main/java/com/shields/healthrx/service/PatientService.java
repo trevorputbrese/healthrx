@@ -17,6 +17,7 @@ import com.shields.healthrx.domain.OutreachChannel;
 import com.shields.healthrx.domain.OutreachOutcome;
 import com.shields.healthrx.domain.WorkflowEventType;
 import com.shields.healthrx.metric.RefillRiskCalculator;
+import com.shields.healthrx.repo.AgentRecommendationRepository;
 import com.shields.healthrx.repo.CareTeamRepository;
 import com.shields.healthrx.repo.PatientRepository;
 import com.shields.healthrx.repo.PatientRepository.HeaderRow;
@@ -36,15 +37,18 @@ public class PatientService {
     private final RiskDataRepository riskData;
     private final RefillRiskService riskService;
     private final CareTeamRepository careTeam;
+    private final AgentRecommendationRepository agentRecommendations;
     private final EventLog events;
     private final AppTime time;
 
     public PatientService(PatientRepository patients, RiskDataRepository riskData, RefillRiskService riskService,
-                          CareTeamRepository careTeam, EventLog events, AppTime time) {
+                          CareTeamRepository careTeam, AgentRecommendationRepository agentRecommendations,
+                          EventLog events, AppTime time) {
         this.patients = patients;
         this.riskData = riskData;
         this.riskService = riskService;
         this.careTeam = careTeam;
+        this.agentRecommendations = agentRecommendations;
         this.events = events;
         this.time = time;
     }
@@ -76,7 +80,8 @@ public class PatientService {
                 therapySummaries,
                 patients.openTasksForPatient(patientId),
                 patients.recentOutreach(patientId, 10),
-                patients.recentInterventions(patientId, 10));
+                patients.recentInterventions(patientId, 10),
+                agentRecommendations.countPendingForPatient(patientId));
     }
 
     @Transactional(readOnly = true)
@@ -91,6 +96,7 @@ public class PatientService {
         all.addAll(patients.timelineOutreach(patientId));
         all.addAll(patients.timelineInterventions(patientId));
         all.addAll(patients.timelineNotes(patientId));
+        all.addAll(patients.timelineAgent(patientId));
 
         List<TimelineDtos.Item> filtered = all.stream()
                 .filter(item -> item.occurredAt() != null)

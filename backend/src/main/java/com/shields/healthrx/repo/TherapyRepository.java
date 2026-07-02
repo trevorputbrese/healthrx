@@ -38,6 +38,22 @@ public class TherapyRepository {
         return n != null && n > 0;
     }
 
+    public record TherapyContext(UUID patientId, UUID referralId) {
+    }
+
+    /** The therapy's patient and (when one links back) its referral — for the fill action tool. */
+    public java.util.Optional<TherapyContext> context(UUID therapyId) {
+        return jdbc.query("""
+                select t.patient_id, r.id as referral_id
+                from therapies t
+                left join referrals r on r.therapy_id = t.id
+                where t.id = :id
+                limit 1""",
+                new MapSqlParameterSource("id", therapyId),
+                (rs, i) -> new TherapyContext(Columns.uuid(rs, "patient_id"), Columns.uuid(rs, "referral_id")))
+                .stream().findFirst();
+    }
+
     /**
      * Creates an ACTIVE therapy for a referral that has none yet (event-driven activation),
      * copying patient/medication/disease-state from the referral. Diagnosis defaults to the

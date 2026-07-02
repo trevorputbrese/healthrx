@@ -1,6 +1,15 @@
 spring:
   application:
     name: healthrx
+  # Embedded MCP server exposing the agent action tools at /mcp (streamable HTTP), registered
+  # behind the MCP gateway. See phase-3-design.md §5.2.
+  ai:
+    mcp:
+      server:
+        name: healthrx
+        version: 0.1.0
+        type: SYNC
+        protocol: STREAMABLE
   # Local development datasource (matches compose.yaml). On Cloud Foundry, java-cfenv
   # overrides spring.datasource.* from the bound Postgres service in VCAP_SERVICES.
   datasource:
@@ -59,6 +68,17 @@ healthrx:
   # Base URL of the generator app; the API proxies the Simulation control panel to it.
   generator:
     url: ${HEALTHRX_GENERATOR_URL:http://localhost:8081}
+  # Base URLs of the agent apps; the API proxies approve/pause/status to them (phase-3-design.md §8).
+  agents:
+    adherence-risk:
+      url: ${HEALTHRX_ADHERENCE_AGENT_URL:http://localhost:8082}
+    access-workflow:
+      url: ${HEALTHRX_ACCESS_AGENT_URL:http://localhost:8083}
+  # Per-agent shared secrets guarding the embedded MCP action tools until SSO (phase-3-design.md §4).
+  mcp:
+    agent-keys:
+      adherence-risk: ${HEALTHRX_MCP_KEY_ADHERENCE:local-dev-adherence-key}
+      access-workflow: ${HEALTHRX_MCP_KEY_ACCESS:local-dev-access-key}
 
 logging:
   level:

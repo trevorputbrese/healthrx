@@ -673,3 +673,23 @@ publishes the ambient event stream consumed by the API.
 Returns `502` with an error body when the generator is unreachable. The queue, workbench, and
 dashboard views poll every ~8s so changes from the event stream appear live.
 
+## Agents (Phase 3)
+
+The Agents view backend (phase-3-design.md §8). Recommendations are written by the event consumer
+from `AgentRecommendationCreated`/`Applied`; approve executes **through the owning agent** (option
+B), which performs the clinical writes via the gateway's audited MCP action tools.
+
+| Endpoint | Behavior |
+| --- | --- |
+| `GET /api/agents` | Both agents: `{ name, displayName, paused, reachable, lastActivityAt, totalRecommendations, pendingCount, appliedCount, autoAppliedCount }`. |
+| `GET /api/agents/recommendations?status=&agent=&page=&size=` | Paginated feed, newest first, incl. `recommendation` (structured plan) and `trace` (ordered steps). The read path lazily re-arms rows stuck `APPLYING` past the proxy timeout. |
+| `POST /api/agents/recommendations/{id}/approve` | Body `{ decidedById }` (Acting-as member). Atomic `PENDING→APPLYING` gate — anything else returns `409 RECOMMENDATION_NOT_PENDING`; proxies to the agent's `/agent/recommendations/{id}/apply`; marks `APPLIED` synchronously on success; on failure returns `502 AGENT_UNAVAILABLE` and reverts the row to `PENDING` (retry-safe: the action tools are ledger-idempotent per recommendation). |
+| `POST /api/agents/recommendations/{id}/dismiss` | Body `{ decidedById }`. `PENDING → DISMISSED`; otherwise `409`. |
+| `POST /api/agents/{name}/pause` · `/resume` | Durable kill switch (upserts `agent_control`; agents read it per trigger). |
+
+Recommendation statuses: `PENDING`, `APPLYING`, `APPLIED`, `AUTO_APPLIED` (Access agent, 3b),
+`DISMISSED`, `SUPERSEDED`. The patient timeline gains a derived `AGENT` item type (actor = the
+agent's care-team member; `metadata.decidedBy` = the approving human). Referral/patient detail
+responses carry `pendingAgentRecommendations` for badges. The owners lookup excludes `System` and
+`AI Agent` roles, so `decidedById` is always human.
+

@@ -34,8 +34,12 @@ public class LookupRepository {
     }
 
     public List<NamedRef> owners() {
-        return jdbc.query(
-                "select id, display_name from care_team_members where active = true order by display_name",
+        // Non-human actors (System, AI agents) resolve by id for display but never appear in the
+        // Acting-as selector, owner filters, or assignment dropdowns. See phase-3-design.md §7.
+        return jdbc.query("""
+                select id, display_name from care_team_members
+                where active = true and role not in ('System', 'AI Agent')
+                order by display_name""",
                 (rs, i) -> new NamedRef(Columns.uuid(rs, "id"), rs.getString("display_name")));
     }
 

@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: healthrx-adherence-risk-agent
+  # Local RabbitMQ (compose). On Cloud Foundry, java-cfenv maps the bound service to these.
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:healthrx}
+    password: ${SPRING_RABBITMQ_PASSWORD:healthrx}
+    listener:
+      simple:
+        acknowledge-mode: auto
+        default-requeue-rejected: false
+  # The marketplace ai-models binding is OpenAI wire format; on CF the GenAiCfEnvProcessor
+  # overrides these from VCAP_SERVICES. Locally, point at any OpenAI-compatible endpoint.
+  ai:
+    openai:
+      base-url: ${GENAI_BASE_URL:http://localhost:9090}
+      api-key: ${GENAI_API_KEY:local-dev-key}
+      chat:
+        options:
+          model: ${GENAI_MODEL:gpt-5.4}
+          # gpt-5.x models accept only the default temperature.
+          temperature: 1.0
+
+server:
+  port: ${PORT:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+healthrx:
+  events:
+    exchange: healthrx.events
+    routing-prefix: healthrx.event.
+    queue: healthrx.events.agent.adherence
+    consumer:
+      enabled: ${HEALTHRX_EVENTS_CONSUMER_ENABLED:true}
+  agent:
+    name: adherence-risk
+    # Interim identity until SSO: X-Agent-Id/X-Agent-Key through the gateway (phase-3-design.md §4).
+    key: ${HEALTHRX_MCP_KEY_ADHERENCE:local-dev-adherence-key}
+    # All reads and writes go through the MCP gateway; each registered server has a path prefix.
+    gateway-url: ${HEALTHRX_MCP_GATEWAY_URL:http://localhost:8080}
+    postgres-endpoint: ${HEALTHRX_MCP_POSTGRES_ENDPOINT:/healthrx-postgres-mcp-server/mcp}
+    healthrx-endpoint: ${HEALTHRX_MCP_HEALTHRX_ENDPOINT:/healthrx/mcp}
+    cooldown-sim-hours: ${HEALTHRX_AGENT_COOLDOWN_SIM_HOURS:24}
+    wait-processed-timeout-ms: 10000
+
+logging:
+  level:
+    com.shields.healthrx.agent: INFO

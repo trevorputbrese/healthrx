@@ -16,9 +16,14 @@ applications:
     health-check-http-endpoint: /actuator/health/liveness
     routes:
       - route: ((route))
+      # Internal route: required for MCP-gateway registration (the gateway reaches registered
+      # servers over container networking).
+      - route: ((mcp_internal_route))
     services:
       - ((postgres_service_instance))
       - ((rabbitmq_service_instance))
+      # Registers the embedded MCP action server (/mcp) behind the gateway.
+      - ((mcp_gateway_service_instance))
     env:
       # Pin the runtime JRE to 17 so behavior is identical across foundations.
       JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 17.+ } }'
@@ -26,8 +31,36 @@ applications:
       HEALTHRX_CLOCK_FIXED_INSTANT: "2026-06-29T00:00:00Z"
       # The API proxies the Simulation control panel to the generator app.
       HEALTHRX_GENERATOR_URL: "https://((generator_route))"
+      # Phase 3: the API proxies agent approve/pause/status to the agent apps.
+      HEALTHRX_ADHERENCE_AGENT_URL: "https://((adherence_agent_route))"
+      # Phase 3: per-agent shared secrets guarding the embedded MCP action tools until SSO.
+      HEALTHRX_MCP_KEY_ADHERENCE: ((mcp_key_adherence))
+      HEALTHRX_MCP_KEY_ACCESS: ((mcp_key_access))
       # Modest JVM footprint for a 1G container.
       JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"
+
+  # Phase 3a Adherence Risk Agent — senses RefillMissed off RabbitMQ, reasons via its own
+  # marketplace LLM instance, and reads/acts exclusively through the MCP gateway (no Postgres
+  # binding by design; see phase-3-design.md §3).
+  - name: ((adherence_agent_app_name))
+    path: agents/adherence-risk-agent/build/libs/healthrx-adherence-risk-agent.jar
+    memory: 1G
+    disk_quota: 1G
+    instances: 1
+    buildpacks:
+      - ((buildpack))
+    health-check-type: http
+    health-check-http-endpoint: /actuator/health/liveness
+    routes:
+      - route: ((adherence_agent_route))
+    services:
+      - ((rabbitmq_service_instance))
+      - ((adherence_llm_service_instance))
+    env:
+      JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 17.+ } }'
+      JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"
+      HEALTHRX_MCP_GATEWAY_URL: ((mcp_gateway_url))
+      HEALTHRX_MCP_KEY_ADHERENCE: ((mcp_key_adherence))
 
   # Phase 2 synthetic data generator — advances the simulated clock and publishes the ambient
   # event stream. Bound to the same Postgres and RabbitMQ instances.

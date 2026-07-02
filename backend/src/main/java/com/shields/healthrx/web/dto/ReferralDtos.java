@@ -95,7 +95,8 @@ public final class ReferralDtos {
             Metrics metrics,
             List<TaskSummary> openTasks,
             List<NoteItem> recentNotes,
-            List<StatusHistoryItem> statusHistory) {
+            List<StatusHistoryItem> statusHistory,
+            int pendingAgentRecommendations) {
     }
 
     public record TransitionResult(

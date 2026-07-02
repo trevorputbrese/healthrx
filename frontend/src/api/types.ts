@@ -223,3 +223,54 @@ export interface SimStatus {
   speedSecondsPerSecond: number;
   scenarios: string[];
 }
+
+// --- Phase 3: Agents view (phase-3-design.md §8/§9) ---
+
+export type RecommendationStatus =
+  | 'PENDING'
+  | 'APPLYING'
+  | 'APPLIED'
+  | 'AUTO_APPLIED'
+  | 'DISMISSED'
+  | 'SUPERSEDED';
+
+export interface AgentStatus {
+  name: string;
+  displayName: string;
+  paused: boolean;
+  reachable: boolean;
+  lastActivityAt?: string;
+  totalRecommendations: number;
+  pendingCount: number;
+  appliedCount: number;
+  autoAppliedCount: number;
+}
+
+export interface AgentsResponse {
+  agents: AgentStatus[];
+}
+
+export interface TraceStep {
+  step: string;
+  detail?: string;
+  tool?: string;
+  input?: string;
+  result?: string;
+}
+
+export interface AgentRecommendation {
+  id: string;
+  agentName: string;
+  agentDisplayName: string;
+  patient: NamedRef;
+  referralId?: string;
+  therapyId?: string;
+  taskId?: string;
+  status: RecommendationStatus;
+  summary: string;
+  recommendation: Record<string, unknown>;
+  trace: TraceStep[];
+  createdAt: string;
+  decidedAt?: string;
+  decidedBy?: NamedRef;
+}

@@ -970,3 +970,201 @@ textarea:focus {
     transform: rotate(360deg);
   }
 }
+
+/* ---- Phase 3: Agents view ---- */
+
+.agent-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.agent-card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e3e8ee);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agent-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.agent-card-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.agent-card-sub {
+  color: var(--text-muted, #5b6b7b);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.agent-card-stats {
+  display: flex;
+  gap: 14px;
+  font-size: 13px;
+  color: var(--text-muted, #5b6b7b);
+}
+
+.agent-card .btn {
+  align-self: flex-start;
+}
+
+.agent-filter {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chip-button {
+  border: 1px solid var(--border, #e3e8ee);
+  background: transparent;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.chip-button.is-active {
+  background: var(--accent, #1f6feb);
+  border-color: var(--accent, #1f6feb);
+  color: #fff;
+}
+
+.agent-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-rec {
+  border: 1px solid var(--border, #e3e8ee);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.agent-rec-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.agent-rec-agent {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.agent-rec-summary {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted, #40505f);
+}
+
+.agent-rec-when {
+  font-size: 12px;
+  color: var(--text-muted, #5b6b7b);
+  white-space: nowrap;
+}
+
+.agent-rec-caret {
+  color: var(--text-muted, #5b6b7b);
+}
+
+.agent-rec-body {
+  border-top: 1px solid var(--border, #e3e8ee);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.agent-rec-meta {
+  font-size: 13px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.agent-trace-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #5b6b7b);
+  margin-bottom: 6px;
+}
+
+.agent-trace-step {
+  display: flex;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+  border-bottom: 1px dashed var(--border, #eef2f6);
+  align-items: baseline;
+}
+
+.agent-trace-step:last-child {
+  border-bottom: none;
+}
+
+.agent-trace-kind {
+  flex: 0 0 84px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted, #5b6b7b);
+}
+
+.agent-trace-detail {
+  flex: 1;
+  word-break: break-word;
+}
+
+.agent-trace-detail code {
+  font-size: 12px;
+}
+
+.agent-trace-result {
+  color: var(--text-muted, #5b6b7b);
+}
+
+.agent-proposal-risk {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.agent-proposal-item {
+  font-size: 13px;
+  padding: 3px 0;
+}
+
+.agent-rec-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.agent-rec-error {
+  color: var(--danger, #b42318);
+  font-size: 13px;
+}
