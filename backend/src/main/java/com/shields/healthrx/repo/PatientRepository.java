@@ -50,12 +50,27 @@ public class PatientRepository {
             UUID ownerId, String ownerName, long activeReferralCount, long openTaskCount) {
     }
 
-    public List<ListRow> list(String search, String diseaseState, int page, int size) {
+    /** Sortable patient-directory columns (whitelist keeps the sort param SQL-safe). */
+    private static final Map<String, String> LIST_SORTABLE = Map.of(
+            "name", "display_name",
+            "mrn", "p.demo_mrn",
+            "diseaseState", "p.disease_state",
+            "clinic", "c.name",
+            "payer", "pay.name",
+            "owner", "ct.display_name",
+            "therapyCount", "therapy_count",
+            "activeReferralCount", "active_referral_count",
+            "openTaskCount", "open_task_count");
+
+    public List<ListRow> list(String search, String diseaseState, String sortField, String sortDirection,
+            int page, int size) {
         StringBuilder sql = new StringBuilder("""
                 select p.id, p.demo_mrn, p.first_name || ' ' || p.last_name as display_name,
                        p.date_of_birth, p.disease_state, c.id as clinic_id, c.name as clinic_name,
                        pay.id as payer_id, pay.name as payer_name,
                        ct.id as owner_id, ct.display_name as owner_name,
+                       (select count(*) from therapies t
+                         where t.patient_id = p.id) as therapy_count,
                        (select count(*) from referrals r
                          where r.patient_id = p.id
                            and r.current_status not in ('ACTIVE_THERAPY','CANCELLED')) as active_referral_count,
@@ -63,7 +78,10 @@ public class PatientRepository {
                          where t.patient_id = p.id and t.status in ('OPEN','IN_PROGRESS')) as open_task_count""");
         MapSqlParameterSource params = new MapSqlParameterSource();
         sql.append(listFrom(search, diseaseState, params));
-        sql.append(" order by display_name asc limit :limit offset :offset");
+        String sortCol = LIST_SORTABLE.getOrDefault(sortField, "display_name");
+        String dir = "desc".equalsIgnoreCase(sortDirection) ? "desc" : "asc";
+        sql.append(" order by ").append(sortCol).append(' ').append(dir).append(", display_name asc");
+        sql.append(" limit :limit offset :offset");
         params.addValue("limit", size).addValue("offset", (long) page * size);
         return jdbc.query(sql.toString(), params, (rs, i) -> new ListRow(
                 Columns.uuid(rs, "id"), rs.getString("demo_mrn"), rs.getString("display_name"),

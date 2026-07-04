@@ -33,6 +33,17 @@
   gap: 8px;
   font-size: 13px;
 }
+.acting-as-name {
+  font-weight: 600;
+}
+
+/* Small provenance chip on agent-routed tasks: the human owns the action, the agent assigned it. */
+.task-agent-chip {
+  margin-left: 6px;
+  font-size: 10px;
+  padding: 1px 7px;
+  vertical-align: 1px;
+}
 .acting-as-label {
   color: var(--text-faint);
 }
@@ -1319,6 +1330,57 @@ textarea:focus {
   color: var(--primary, #0f6fb5);
   font-weight: 600;
   flex: 0 0 auto;
+}
+
+/* ---- Sortable table headers ---- */
+
+.data-table th.th-sort {
+  padding: 0;
+}
+.th-sort-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 10px 12px; /* mirror the data-table th padding so headers align */
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: inherit;
+  color: inherit;
+  text-align: left;
+}
+.th-sort.num .th-sort-btn {
+  justify-content: flex-end;
+  text-align: right;
+}
+.th-sort-icon {
+  font-size: 10px;
+  color: var(--text-faint, #8a97a5);
+}
+.th-sort.is-sorted .th-sort-icon {
+  color: var(--primary, #0f6fb5);
+}
+.th-sort-btn:hover .th-sort-icon {
+  color: var(--primary, #0f6fb5);
+}
+
+/* Protocol chip on trace steps: HOW the agent did it (MCP / REST / event / LLM). */
+.trace-proto {
+  flex: 0 0 auto;
+  margin-left: auto;
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong, #cfd8e0);
+  color: var(--text-muted, #5b6b7b);
+  background: var(--surface-2, #f4f7fa);
+  white-space: nowrap;
 }
 
 /* Queue rows that just changed status flash so world movement reads instantly. */

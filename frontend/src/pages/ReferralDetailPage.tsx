@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAddNote, useAdvanceStatus, useReferral, useUpdateFinancials } from '../api/hooks';
 import { useActingAs } from '../state/ActingAsContext';
-import { dateOnly, dateTime, days, money, STATUS_LABELS, titleCase } from '../format';
+import { agentTask, dateOnly, dateTime, days, money, STATUS_LABELS, titleCase } from '../format';
 import { Card, PriorityBadge, StateBlock, StatusBadge } from '../components/ui';
 import Modal from '../components/Modal';
 import type { ReferralDetail, ReferralStatus } from '../api/types';
@@ -37,7 +37,8 @@ export default function ReferralDetailPage() {
                 </h1>
                 <p className="page-sub">
                   {r.patient.diseaseState} · {r.medication.name} ({r.medication.route}) · {r.clinic.name} ·{' '}
-                  <Link to={`/patients/${r.patient.id}`}>Open patient record →</Link>
+                  <Link to={`/patients/${r.patient.id}`}>Open patient record →</Link> ·{' '}
+                  <Link to={`/lifecycle?referral=${r.id}`}>View on lifecycle map →</Link>
                 </p>
               </div>
               <div className="detail-head-meta">
@@ -119,12 +120,18 @@ export default function ReferralDetailPage() {
                     <p className="cell-sub">No open tasks.</p>
                   ) : (
                     <ul className="list">
-                      {r.openTasks.map((t) => (
-                        <li key={t.id}>
-                          <span className="cell-strong">{titleCase(t.type)}</span> — {t.title}
-                          {t.dueAt && <span className="cell-sub"> · due {dateOnly(t.dueAt)}</span>}
-                        </li>
-                      ))}
+                      {r.openTasks.map((t) => {
+                        const task = agentTask(t.title);
+                        return (
+                          <li key={t.id}>
+                            <span className="cell-strong">{titleCase(t.type)}</span> — {task.title}
+                            {task.assignedByAgent && (
+                              <span className="badge tone-info task-agent-chip">assigned to you by agent</span>
+                            )}
+                            {t.dueAt && <span className="cell-sub"> · due {dateOnly(t.dueAt)}</span>}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </Card>

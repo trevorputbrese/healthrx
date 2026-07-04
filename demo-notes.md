@@ -23,13 +23,13 @@ These four aren't switches with an on/off state — they're **one-shot triggers*
 **Submit prior auth** is the fifth scenario button, and it's the headline agent moment: it pushes the oldest pre-PA referral into `PRIOR_AUTH_SUBMITTED` (chaining the benefits step first if needed). Within a few seconds the **Access Workflow Agent** (must be resumed/Active) picks the event up and, entirely on its own:
 
 1. Looks up the referral, patient, medication, and payer — audited SQL through the MCP gateway.
-2. **Calls ClearPath Benefits** — a separate CF app (`healthrx-payer-portal`) playing the payer's prior-auth portal, over its plain public REST API. It "reviews" for ~1 second.
+2. **Calls ClearPath Benefits** — a separate CF app (`clearpath-payer-portal`) playing the payer's prior-auth portal, over its plain public REST API. It "reviews" for ~1 second.
 3. On **APPROVED**: records the decision through the `record_prior_auth_decision` MCP tool — the referral **advances to Prior auth approved in the queue by itself**, with the auth number and payer in the status history. The portal's **first two submissions after a fresh start or demo reset always approve**, so your opening click is guaranteed to land the clean "agent advanced it" beat.
 4. On **DENIED** (~20% of first submissions after the warm-up, deterministic per referral number): records the denial *and* routes a HIGH-priority appeal task to the owner. If anyone resubmits that PA (Advance status on the referral page → Prior auth submitted), the portal approves the appeal — a nice two-act story. **Reset demo** also clears the portal's memory, so reruns behave identically.
 
 Every run lands in the Agents activity feed as **Acted autonomously**, with the step-by-step trace ("Contacted ClearPath Benefits — the payer's portal, outside HealthRx"). The same beat also fires when **you** advance a referral into Prior auth submitted from the referral detail page — the API re-broadcasts human-driven PA submissions so the agent notices those too. And while the ambient simulation runs, its own PA submissions keep the agent visibly working in the background.
 
-**Show the other side:** open `https://healthrx-payer-portal.apps.<domain>/` in a second tab — a deliberately foreign-looking purple portal page listing every request it received and the decision it issued, refreshing every 5 s. Great for proving there's a real external system on the other end.
+**Show the other side:** open `https://clearpath-payer-portal.apps.<domain>/` in a second tab — a deliberately foreign-looking purple portal page listing every request it received and the decision it issued, refreshing every 5 s. Great for proving there's a real external system on the other end.
 
 ## Other changes for the demo
 

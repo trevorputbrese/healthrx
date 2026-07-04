@@ -43,7 +43,7 @@ class ReferralControllerTest {
                 new EntityRef(UUID.randomUUID(), "Northside Oncology"),
                 new EntityRef(UUID.randomUUID(), "Oncora"),
                 new EntityRef(UUID.randomUUID(), "Atlas Commercial"),
-                new NamedRef(UUID.randomUUID(), "Maya Patel"),
+                new NamedRef(UUID.randomUUID(), "Trevor Putbrese"),
                 "PRIOR_AUTH_SUBMITTED", "HIGH", Instant.parse("2026-06-20T13:00:00Z"),
                 9.1, 4.5, null, new BigDecimal("1200.00"), BigDecimal.ZERO, 2, null);
     }

@@ -87,12 +87,14 @@ export default function AgentsPage() {
   return (
     <div className="page">
       <div className="page-head">
-        <h1>Agents</h1>
-        <p className="page-sub">
-          Two AI teammates work this queue alongside the humans. Every read and write they make
-          against HealthRx goes through the audited MCP gateway; the feed below narrates each run —
-          what triggered it, what the agent found, and what it did about it.
-        </p>
+        <div>
+          <h1>Agents</h1>
+          <p className="page-sub">
+            AI care-team agents that work the referral queue alongside your staff. Every read and
+            write they perform in HealthRx is an audited call through the MCP gateway. The activity
+            feed below documents each run — the trigger, the investigation, and the action taken.
+          </p>
+        </div>
       </div>
 
       <StateBlock query={agents}>
@@ -262,31 +264,36 @@ function RecommendationRow({
   );
 }
 
-/** Friendly narration for a trace step, keyed by step kind and tool name. */
-function describeStep(step: TraceStep): { icon: string; label: string; friendly?: string } {
+/**
+ * Friendly narration for a trace step, keyed by step kind and tool name. `protocol` names the
+ * mechanism used — an audited MCP tool call through the gateway, a plain REST API call to an
+ * external partner, an event off the message bus, or an LLM inference — so viewers can tell at
+ * a glance HOW the agent did each thing.
+ */
+function describeStep(step: TraceStep): { icon: string; label: string; friendly?: string; protocol?: string } {
   if (step.tool) {
     switch (step.tool) {
       case 'executeQuery':
-        return { icon: '🔍', label: 'Investigated', friendly: 'Queried the HealthRx database (read-only SQL via the MCP gateway)' };
+        return { icon: '🔍', label: 'Investigated', protocol: 'MCP tool call', friendly: 'Queried the HealthRx database (read-only SQL via the MCP gateway)' };
       case 'get_medication_guidance':
-        return { icon: '📚', label: 'Consulted', friendly: 'Looked up drug guidance in the knowledge base' };
+        return { icon: '📚', label: 'Consulted', protocol: 'MCP tool call', friendly: 'Looked up drug guidance in the knowledge base' };
       case 'get_condition_guidance':
-        return { icon: '📚', label: 'Consulted', friendly: 'Looked up condition guidance in the knowledge base' };
+        return { icon: '📚', label: 'Consulted', protocol: 'MCP tool call', friendly: 'Looked up condition guidance in the knowledge base' };
       case 'clearpath_portal.prior_auth_decision':
-        return { icon: '🏢', label: 'External call', friendly: 'Contacted ClearPath Benefits — the payer’s portal, outside HealthRx' };
+        return { icon: '🏢', label: 'External call', protocol: 'REST API call', friendly: 'Contacted ClearPath Benefits — the payer’s portal, outside HealthRx' };
       default:
-        return { icon: '🔧', label: 'Tool call', friendly: `Called ${step.tool} via the MCP gateway` };
+        return { icon: '🔧', label: 'Tool call', protocol: 'MCP tool call', friendly: `Called ${step.tool} via the MCP gateway` };
     }
   }
   switch (step.step) {
     case 'trigger':
-      return { icon: '⚡', label: 'Trigger' };
+      return { icon: '⚡', label: 'Trigger', protocol: 'Event (RabbitMQ)' };
     case 'reasoning':
-      return { icon: '🧠', label: 'Reasoned' };
+      return { icon: '🧠', label: 'Reasoned', protocol: 'LLM call' };
     case 'proposal':
       return { icon: '📝', label: 'Drafted plan' };
     case 'action':
-      return { icon: '✅', label: 'Action' };
+      return { icon: '✅', label: 'Action', protocol: 'MCP tool call' };
     default:
       return { icon: '·', label: step.step };
   }
@@ -320,6 +327,7 @@ function Trace({ trace }: { trace: TraceStep[] }) {
             ) : (
               <span className="agent-trace-detail">{step.detail}</span>
             )}
+            {d.protocol && <span className="trace-proto">{d.protocol}</span>}
           </div>
         );
       })}
@@ -376,7 +384,7 @@ function Proposal({ recommendation }: { recommendation: Record<string, unknown> 
       )}
       {task?.title && (
         <div className="agent-proposal-item">
-          <strong>Task routed ({task.priority ?? 'MEDIUM'}):</strong> {task.title}
+          <strong>To-do assigned to the care team ({task.priority ?? 'MEDIUM'}):</strong> {task.title}
         </div>
       )}
       {outreach?.script && (

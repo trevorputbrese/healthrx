@@ -11,7 +11,7 @@ const sampleRow: ReferralSummary = {
   clinic: { id: 'c1', name: 'Northside Oncology' },
   medication: { id: 'm1', name: 'Oncora' },
   payer: { id: 'p1', name: 'Atlas Commercial' },
-  owner: { id: 'o1', displayName: 'Maya Patel' },
+  owner: { id: 'o1', displayName: 'Trevor Putbrese' },
   currentStatus: 'PRIOR_AUTH_SUBMITTED',
   priority: 'HIGH',
   receivedAt: '2026-06-20T13:00:00Z',

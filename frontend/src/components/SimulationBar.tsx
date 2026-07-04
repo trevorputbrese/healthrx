@@ -1,6 +1,7 @@
 import { useResetDemo, useSimControl, useSimStatus } from '../api/hooks';
 
 const SPEEDS: { value: number; label: string }[] = [
+  { value: 1800, label: '30 min/sec' },
   { value: 3600, label: '1 hr/sec' },
   { value: 21600, label: '6 hr/sec' },
   { value: 86400, label: '1 day/sec' },

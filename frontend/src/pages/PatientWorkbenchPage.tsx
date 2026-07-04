@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useLogIntervention, useLogOutreach, useLookups, usePatient, usePatientTimeline } from '../api/hooks';
 import { useActingAs } from '../state/ActingAsContext';
-import { dateOnly, dateTime, percent, titleCase } from '../format';
+import { agentTask, dateOnly, dateTime, percent, titleCase } from '../format';
 import { Card, RiskBadge, StateBlock } from '../components/ui';
 import Modal from '../components/Modal';
 import { MutationFooter } from './ReferralDetailPage';
@@ -80,12 +80,18 @@ export default function PatientWorkbenchPage() {
                     <p className="cell-sub">No open tasks.</p>
                   ) : (
                     <ul className="list">
-                      {p.openTasks.map((t) => (
-                        <li key={t.id}>
-                          <span className="cell-strong">{titleCase(t.type)}</span> — {t.title}
-                          {t.dueAt && <span className="cell-sub"> · due {dateOnly(t.dueAt)}</span>}
-                        </li>
-                      ))}
+                      {p.openTasks.map((t) => {
+                        const task = agentTask(t.title);
+                        return (
+                          <li key={t.id}>
+                            <span className="cell-strong">{titleCase(t.type)}</span> — {task.title}
+                            {task.assignedByAgent && (
+                              <span className="badge tone-info task-agent-chip">assigned to you by agent</span>
+                            )}
+                            {t.dueAt && <span className="cell-sub"> · due {dateOnly(t.dueAt)}</span>}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </Card>

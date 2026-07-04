@@ -85,12 +85,19 @@ class EventConsumerIT {
     @Test
     void consumesReferralCreatedAndIsIdempotent() throws Exception {
         UUID referralId = UUID.randomUUID();
+        // A pair with no existing referral — the consumer skips duplicate patient+medication.
+        var pair = jdbc.queryForMap("""
+                select p.id as patient_id, m.id as medication_id
+                from patients p join medications m on m.disease_state = p.disease_state and m.active
+                where not exists (select 1 from referrals r
+                                  where r.patient_id = p.id and r.medication_id = m.id)
+                limit 1""");
         EventEnvelope env = new EventEnvelope(UUID.randomUUID(), WorkflowEventType.REFERRAL_CREATED.wireName(),
                 Instant.parse("2026-07-02T10:00:00Z"), "test", Map.of(
                 "referralId", referralId.toString(),
-                "patientId", jdbc.queryForObject("select id from patients limit 1", UUID.class).toString(),
+                "patientId", pair.get("patient_id").toString(),
                 "clinicId", jdbc.queryForObject("select id from clinics limit 1", UUID.class).toString(),
-                "medicationId", jdbc.queryForObject("select id from medications limit 1", UUID.class).toString(),
+                "medicationId", pair.get("medication_id").toString(),
                 "payerId", jdbc.queryForObject("select id from payers limit 1", UUID.class).toString(),
                 "ownerId", jdbc.queryForObject("select id from care_team_members where active limit 1", UUID.class).toString(),
                 "priority", "MEDIUM",

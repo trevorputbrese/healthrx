@@ -14,7 +14,7 @@ export const SAMPLE_LOOKUPS: Lookups = {
   clinics: [{ id: 'c1', name: 'Northside Oncology' }],
   payers: [{ id: 'p1', name: 'Atlas Commercial' }],
   medications: [{ id: 'm1', name: 'Oncora' }],
-  owners: [{ id: 'o1', displayName: 'Maya Patel' }],
+  owners: [{ id: 'o1', displayName: 'Trevor Putbrese' }],
   diseaseStates: ['Oncology', 'Rheumatology'],
   taskTypes: [{ value: 'MISSING_LAB', label: 'Missing lab' }],
   outreachChannels: [{ value: 'PHONE', label: 'Phone' }],

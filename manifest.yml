@@ -138,7 +138,7 @@ applications:
   # clearinghouse) the Access Workflow Agent calls over plain HTTPS for prior-auth decisions.
   # Deliberately unbound from every HealthRx service: it represents another company.
   - name: ((payer_portal_app_name))
-    path: partners/payer-portal/build/libs/healthrx-payer-portal.jar
+    path: partners/payer-portal/build/libs/clearpath-payer-portal.jar
     memory: 768M
     disk_quota: 1G
     instances: 1

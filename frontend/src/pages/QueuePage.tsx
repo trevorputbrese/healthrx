@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLookups, useReferralQueue, type QueueParams } from '../api/hooks';
 import { days, money } from '../format';
-import { PriorityBadge, RiskBadge, StateBlock, StatusBadge } from '../components/ui';
+import { PriorityBadge, RiskBadge, SortableTh, StateBlock, StatusBadge } from '../components/ui';
 
 const PAGE_SIZE = 25;
 
@@ -89,14 +89,6 @@ export default function QueuePage() {
             </option>
           ))}
         </select>
-        <select value={filters.ownerId ?? ''} onChange={(e) => set({ ownerId: e.target.value || undefined })}>
-          <option value="">All owners</option>
-          {lookups?.owners.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.displayName}
-            </option>
-          ))}
-        </select>
         <label className="filter-check">
           <input
             type="checkbox"
@@ -114,16 +106,16 @@ export default function QueuePage() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Referral</th>
-                    <th>Patient</th>
-                    <th>Medication</th>
-                    <th>Status</th>
-                    <th>Priority</th>
-                    <th>Owner</th>
-                    <th className="num">Days / PA age</th>
-                    <th className="num">Copay</th>
+                    <SortableTh label="Referral" field="referralNumber" sort={filters.sort} onSort={(sort) => set({ sort })} />
+                    <SortableTh label="Patient" field="patient" sort={filters.sort} onSort={(sort) => set({ sort })} />
+                    <SortableTh label="Medication" field="medication" sort={filters.sort} onSort={(sort) => set({ sort })} />
+                    <SortableTh label="Status" field="currentStatus" sort={filters.sort} onSort={(sort) => set({ sort })} />
+                    <SortableTh label="Priority" field="priority" sort={filters.sort} onSort={(sort) => set({ sort })} />
+                    <SortableTh label="Owner" field="owner" sort={filters.sort} onSort={(sort) => set({ sort })} />
+                    <SortableTh label="Days / PA age" field="receivedAt" sort={filters.sort} onSort={(sort) => set({ sort })} className="num" />
+                    <SortableTh label="Copay" field="copayAmount" sort={filters.sort} onSort={(sort) => set({ sort })} className="num" />
                     <th>Refill risk</th>
-                    <th className="num">Tasks</th>
+                    <SortableTh label="Tasks" field="openTaskCount" sort={filters.sort} onSort={(sort) => set({ sort })} className="num" />
                   </tr>
                 </thead>
                 <tbody>

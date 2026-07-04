@@ -35,5 +35,5 @@ tasks.named('test') {
 }
 
 bootJar {
-    archiveFileName = 'healthrx-payer-portal.jar'
+    archiveFileName = 'clearpath-payer-portal.jar'
 }

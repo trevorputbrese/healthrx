@@ -377,7 +377,10 @@ class SeedBuilder:
             disease = DISEASE_STATES[idx % len(DISEASE_STATES)]
             clinic = self.clinic_by_disease[disease]
             first = FIRST_NAMES[idx % len(FIRST_NAMES)]
-            last = LAST_NAMES[(idx * 7 + 3) % len(LAST_NAMES)]
+            # Shift the surname pairing per 40-index wave: both name arrays are length 40, so
+            # without this the (first, last) combination repeats exactly every 40 patients and
+            # the queue fills with apparent duplicate people (V10 repairs the shipped V2 data).
+            last = LAST_NAMES[(idx * 7 + 3 + (idx // len(FIRST_NAMES)) * 11) % len(LAST_NAMES)]
             dob_year = 1950 + (idx * 11) % 50
             dob_month = 1 + (idx * 5) % 12
             dob_day = 1 + (idx * 13) % 28

@@ -65,7 +65,13 @@ export function useReferral(id: string | undefined) {
   });
 }
 
-export function usePatients(params: { search?: string; diseaseState?: string; page?: number; size?: number }) {
+export function usePatients(params: {
+  search?: string;
+  diseaseState?: string;
+  sort?: string;
+  page?: number;
+  size?: number;
+}) {
   return useQuery({
     queryKey: ['patients', params],
     queryFn: () => api.get<PageResponse<PatientSummary>>(`/api/patients${qs({ ...params })}`),

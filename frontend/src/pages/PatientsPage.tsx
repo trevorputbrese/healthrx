@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLookups, usePatients } from '../api/hooks';
 import { dateOnly } from '../format';
-import { RiskBadge, StateBlock } from '../components/ui';
+import { RiskBadge, SortableTh, StateBlock } from '../components/ui';
 
 const PAGE_SIZE = 25;
 
@@ -12,11 +12,18 @@ export default function PatientsPage() {
   const { data: lookups } = useLookups();
   const [search, setSearch] = useState('');
   const [diseaseState, setDiseaseState] = useState('');
+  const [sort, setSort] = useState('name,asc');
   const [page, setPage] = useState(0);
+
+  const onSort = (next: string) => {
+    setSort(next);
+    setPage(0);
+  };
 
   const query = usePatients({
     search: search || undefined,
     diseaseState: diseaseState || undefined,
+    sort,
     page,
     size: PAGE_SIZE,
   });
@@ -67,15 +74,15 @@ export default function PatientsPage() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>MRN</th>
-                    <th>Patient</th>
-                    <th>Clinic</th>
-                    <th>Payer</th>
-                    <th>Owner</th>
-                    <th className="num">Therapies</th>
+                    <SortableTh label="MRN" field="mrn" sort={sort} onSort={onSort} />
+                    <SortableTh label="Patient" field="name" sort={sort} onSort={onSort} />
+                    <SortableTh label="Clinic" field="clinic" sort={sort} onSort={onSort} />
+                    <SortableTh label="Payer" field="payer" sort={sort} onSort={onSort} />
+                    <SortableTh label="Owner" field="owner" sort={sort} onSort={onSort} />
+                    <SortableTh label="Therapies" field="therapyCount" sort={sort} onSort={onSort} className="num" />
                     <th>Refill risk</th>
-                    <th className="num">Active referrals</th>
-                    <th className="num">Open tasks</th>
+                    <SortableTh label="Active referrals" field="activeReferralCount" sort={sort} onSort={onSort} className="num" />
+                    <SortableTh label="Open tasks" field="openTaskCount" sort={sort} onSort={onSort} className="num" />
                   </tr>
                 </thead>
                 <tbody>

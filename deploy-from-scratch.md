@@ -11,7 +11,7 @@ marketplace service instances** and **7 apps**, all built and pushed from this o
 | 4 | `healthrx-access-agent` | rabbitmq, access LLM | public |
 | 5 | `healthrx-knowledge-mcp` | **mcp-gw** (registers `/healthrx-knowledge-mcp/mcp`) | internal only |
 | 6 | `healthrx-postgres-mcp-server` (`mcp-servers/postgres/`, Maven) | postgres, **mcp-gw** (registers `/healthrx-postgres-mcp-server/mcp`) | internal only |
-| 7 | `healthrx-payer-portal` (ClearPath Benefits — stand-in **external partner**, `partners/payer-portal/`) | nothing (deliberately: it plays another company) | public |
+| 7 | `clearpath-payer-portal` (ClearPath Benefits — stand-in **external partner**, `partners/payer-portal/`) | nothing (deliberately: it plays another company) | public |
 
 Prerequisites: `cf` CLI v8+, JDK 17+ (backend/agents/knowledge server) — app 6 targets Java 21,
 so JDK 21 too if you don't want to rely solely on the buildpack's JRE — and a foundation with the

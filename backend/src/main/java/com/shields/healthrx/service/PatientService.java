@@ -56,10 +56,16 @@ public class PatientService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<PatientDtos.Summary> list(String search, String diseaseState, int page, int size) {
+    public PageResponse<PatientDtos.Summary> list(String search, String diseaseState, String sort,
+            int page, int size) {
         int normalizedSize = Math.min(Math.max(size, 1), 100);
         int normalizedPage = Math.max(page, 0);
-        List<PatientRepository.ListRow> rows = patients.list(search, diseaseState, normalizedPage, normalizedSize);
+        // sort is "field,direction" like the referral queue's parameter.
+        String[] sortParts = sort == null ? new String[0] : sort.split(",", 2);
+        String sortField = sortParts.length > 0 ? sortParts[0].trim() : null;
+        String sortDirection = sortParts.length > 1 ? sortParts[1].trim() : "asc";
+        List<PatientRepository.ListRow> rows =
+                patients.list(search, diseaseState, sortField, sortDirection, normalizedPage, normalizedSize);
         long total = patients.countList(search, diseaseState);
 
         List<UUID> patientIds = rows.stream().map(PatientRepository.ListRow::id).toList();

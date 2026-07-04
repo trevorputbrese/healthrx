@@ -73,9 +73,14 @@ public class ResetService {
         // 2. Wipe all data (idempotency ledger included so the seed re-applies cleanly).
         jdbc.execute(TRUNCATE);
 
-        // 3. Re-apply the deterministic seed (same script Flyway runs for V2).
+        // 3. Re-apply the deterministic seed (same script Flyway runs for V2), then collapse to
+        // the single signed-in user and rename them to the presenter (V8 + V9 — the V2 seed is
+        // multi-owner and Flyway checksums forbid editing it).
         jdbc.execute((Connection con) -> {
             ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V2__seed_data.sql"));
+            ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V8__single_care_team_user.sql"));
+            ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V9__rename_single_user_trevor.sql"));
+            ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V10__unique_patient_names.sql"));
             return null;
         });
 

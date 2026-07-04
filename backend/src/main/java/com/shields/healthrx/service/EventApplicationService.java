@@ -7,6 +7,8 @@ import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +32,8 @@ import com.shields.healthrx.web.EnumParsing;
  */
 @Service
 public class EventApplicationService {
+
+    private static final Logger log = LoggerFactory.getLogger(EventApplicationService.class);
 
     private final ReferralIntakeService intake;
     private final ReferralService referralService;
@@ -69,11 +73,7 @@ public class EventApplicationService {
         Instant at = env.occurredAt() != null ? env.occurredAt() : time.now();
 
         switch (type) {
-            case REFERRAL_CREATED -> intake.create(
-                    reqUuid(p, "referralId"), reqUuid(p, "patientId"), reqUuid(p, "clinicId"),
-                    reqUuid(p, "medicationId"), reqUuid(p, "payerId"), reqUuid(p, "ownerId"),
-                    reqStr(p, "priority"), bool(p, "paRequired", false),
-                    bool(p, "financialAssistanceRequired", false), at);
+            case REFERRAL_CREATED -> applyReferralCreated(p, at);
             case BENEFITS_INVESTIGATION_STARTED -> transition(p, ReferralStatus.BENEFITS_INVESTIGATION);
             case PRIOR_AUTHORIZATION_SUBMITTED -> transition(p, ReferralStatus.PRIOR_AUTH_SUBMITTED);
             case PRIOR_AUTHORIZATION_APPROVED -> transition(p, ReferralStatus.PRIOR_AUTH_APPROVED);
@@ -104,6 +104,26 @@ public class EventApplicationService {
             case AGENT_RECOMMENDATION_CREATED -> agentRecommendations.recordCreated(p, at);
             case AGENT_RECOMMENDATION_APPLIED -> agentRecommendations.recordApplied(p, at);
         }
+    }
+
+    /**
+     * Creates the referral unless the patient already has one for the same medication. The
+     * generator checks this too, but referral creation is asynchronous (event -> consumer), so
+     * two near-simultaneous picks can both pass its read; this consumer runs events one at a
+     * time, making it the authoritative duplicate gate.
+     */
+    private void applyReferralCreated(Map<String, Object> p, Instant at) {
+        UUID patientId = reqUuid(p, "patientId");
+        UUID medicationId = reqUuid(p, "medicationId");
+        if (referrals.existsForPatientAndMedication(patientId, medicationId)) {
+            log.info("Skipping duplicate referral for patient {} medication {} — one already exists",
+                    patientId, medicationId);
+            return;
+        }
+        intake.create(reqUuid(p, "referralId"), patientId, reqUuid(p, "clinicId"),
+                medicationId, reqUuid(p, "payerId"), reqUuid(p, "ownerId"),
+                reqStr(p, "priority"), bool(p, "paRequired", false),
+                bool(p, "financialAssistanceRequired", false), at);
     }
 
     private void transition(Map<String, Object> p, ReferralStatus target) {

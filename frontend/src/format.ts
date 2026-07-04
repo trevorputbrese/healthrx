@@ -107,6 +107,18 @@ export function priorityTone(priority: string): string {
   }
 }
 
+/**
+ * Agent-routed tasks carry an "[Agent] " title prefix on the wire. Presentation strips it and
+ * flags provenance separately, so "Submit PA for X" clearly reads as the USER's to-do that the
+ * agent assigned — not something the agent already did.
+ */
+export function agentTask(title: string): { assignedByAgent: boolean; title: string } {
+  if (title.startsWith('[Agent] ')) {
+    return { assignedByAgent: true, title: title.slice('[Agent] '.length) };
+  }
+  return { assignedByAgent: false, title };
+}
+
 export function titleCase(s: string): string {
   return s
     .toLowerCase()

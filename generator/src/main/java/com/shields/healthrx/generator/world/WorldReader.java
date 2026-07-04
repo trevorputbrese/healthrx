@@ -55,13 +55,20 @@ public class WorldReader {
         return rows.stream().findFirst();
     }
 
-    /** A random existing patient + a medication in their disease state, for a new referral. */
+    /**
+     * A random patient + medication pair in their disease state that has NO existing referral —
+     * a patient never gets a second referral for a drug they already have one for (in any
+     * status), which kept happening and read as duplicate rows in the queue.
+     */
     public Optional<NewReferralSeed> pickNewReferralSeed() {
         List<NewReferralSeed> rows = jdbc.query("""
                 select p.id as patient_id, p.clinic_id, p.payer_id, p.primary_owner_id as owner_id,
-                       (select m.id from medications m where m.disease_state = p.disease_state and m.active
-                        order by random() limit 1) as medication_id
-                from patients p order by random() limit 1""",
+                       m.id as medication_id
+                from patients p
+                join medications m on m.disease_state = p.disease_state and m.active
+                where not exists (select 1 from referrals r
+                                  where r.patient_id = p.id and r.medication_id = m.id)
+                order by random() limit 1""",
                 (rs, i) -> new NewReferralSeed(uuid(rs, "patient_id"), uuid(rs, "clinic_id"),
                         uuid(rs, "medication_id"), uuid(rs, "payer_id"), uuid(rs, "owner_id")));
         return rows.stream().filter(s -> s.medicationId() != null).findFirst();

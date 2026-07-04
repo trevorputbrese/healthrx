@@ -72,7 +72,11 @@ public class ReferralRepository {
             "copayAmount", "r.copay_amount",
             "referralNumber", "r.referral_number",
             "currentStatus", "r.current_status",
-            "priority", "case r.priority when 'URGENT' then 4 when 'HIGH' then 3 when 'MEDIUM' then 2 else 1 end");
+            "priority", "case r.priority when 'URGENT' then 4 when 'HIGH' then 3 when 'MEDIUM' then 2 else 1 end",
+            "patient", "p.first_name || ' ' || p.last_name",
+            "medication", "m.name",
+            "owner", "ct.display_name",
+            "openTaskCount", "open_task_count");
 
     public long countQueue(QueueFilter f) {
         StringBuilder sql = new StringBuilder(
@@ -258,6 +262,15 @@ public class ReferralRepository {
         return jdbc.query("select patient_id from referrals where id = :id",
                 new MapSqlParameterSource("id", id), (rs, i) -> Columns.uuid(rs, "patient_id"))
                 .stream().findFirst();
+    }
+
+    /** A patient never carries two referrals for the same medication (any status). */
+    public boolean existsForPatientAndMedication(UUID patientId, UUID medicationId) {
+        Long n = jdbc.queryForObject(
+                "select count(*) from referrals where patient_id = :pid and medication_id = :mid",
+                new MapSqlParameterSource().addValue("pid", patientId).addValue("mid", medicationId),
+                Long.class);
+        return n != null && n > 0;
     }
 
     public Optional<State> loadState(UUID id) {

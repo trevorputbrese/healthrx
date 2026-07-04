@@ -1,19 +1,17 @@
 import { useActingAs } from '../state/ActingAsContext';
 
-/** Header "Acting as" selector — the Phase 1 (no-auth) actor model. */
+/**
+ * Shows who is signed in. The demo runs as a single user (the V8 migration collapses the care
+ * team to one active member), so this is a label rather than a persona switcher; the context
+ * still resolves the actor id from lookups for every write.
+ */
 export default function ActingAsSelector() {
-  const { actors, actorId, setActorId } = useActingAs();
-  if (actors.length === 0) return null;
+  const { actor } = useActingAs();
+  if (!actor) return null;
   return (
-    <label className="acting-as">
-      <span className="acting-as-label">Acting as</span>
-      <select value={actorId ?? ''} onChange={(e) => setActorId(e.target.value)}>
-        {actors.map((a) => (
-          <option key={a.id} value={a.id}>
-            {a.displayName}
-          </option>
-        ))}
-      </select>
-    </label>
+    <span className="acting-as">
+      <span className="acting-as-label">Signed in as</span>
+      <span className="acting-as-name">{actor.displayName}</span>
+    </span>
   );
 }

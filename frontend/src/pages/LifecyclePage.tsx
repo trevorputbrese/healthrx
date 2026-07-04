@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useLookups, useReferral, useReferralQueue } from '../api/hooks';
 import { dateOnly, STATUS_LABELS } from '../format';
 import { Card, StateBlock, StatusBadge } from '../components/ui';
@@ -28,7 +28,17 @@ const STAGE_ORDER: ReferralStatus[] = [
 export default function LifecyclePage() {
   const { data: lookups } = useLookups();
   const [search, setSearch] = useState('');
-  const [selectedId, setSelectedId] = useState<string | undefined>();
+  // Deep-linkable: /lifecycle?referral=<id> preselects that referral (linked from the
+  // referral detail page). Manual picker changes after arrival still work as before.
+  const [searchParams] = useSearchParams();
+  const urlReferralId = searchParams.get('referral') ?? undefined;
+  const [selectedId, setSelectedId] = useState<string | undefined>(urlReferralId);
+
+  useEffect(() => {
+    if (urlReferralId) {
+      setSelectedId(urlReferralId);
+    }
+  }, [urlReferralId]);
 
   const list = useReferralQueue({ search, size: 50, includeCancelled: true, sort: 'receivedAt,desc' });
   const detail = useReferral(selectedId);

@@ -18,7 +18,7 @@ const summary: DashboardSummary = {
     overdueTaskCount: 17,
   },
   statusCounts: [{ status: 'ACTIVE_THERAPY', count: 42 }],
-  openTasksByOwner: [{ owner: { id: 'o1', displayName: 'Maya Patel' }, count: 7 }],
+  openTasksByOwner: [{ owner: { id: 'o1', displayName: 'Trevor Putbrese' }, count: 7 }],
 };
 const trends: DashboardTrends = {
   bucket: 'month',
@@ -42,7 +42,7 @@ describe('DashboardPage', () => {
     expect(await screen.findByText('Active patients on therapy')).toBeInTheDocument();
     expect(screen.getByText('19.0 d')).toBeInTheDocument();
     expect(screen.getByText('$104,411')).toBeInTheDocument();
-    // "Maya Patel" / "42" recur across the acting-as selector and breakdowns; assert presence.
-    expect(screen.getAllByText('Maya Patel').length).toBeGreaterThan(0);
+    // "Trevor Putbrese" / "42" recur across the acting-as selector and breakdowns; assert presence.
+    expect(screen.getAllByText('Trevor Putbrese').length).toBeGreaterThan(0);
   });
 });

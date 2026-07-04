@@ -58,6 +58,16 @@ class EventApplicationIT {
         return jdbc.queryForObject(sql, UUID.class);
     }
 
+    /** A patient+medication pair with no existing referral (the consumer skips duplicates). */
+    private Map<String, Object> unreferredPair() {
+        return jdbc.queryForMap("""
+                select p.id as patient_id, m.id as medication_id
+                from patients p join medications m on m.disease_state = p.disease_state and m.active
+                where not exists (select 1 from referrals r
+                                  where r.patient_id = p.id and r.medication_id = m.id)
+                limit 1""");
+    }
+
     private EventEnvelope env(WorkflowEventType type, Map<String, Object> payload) {
         return new EventEnvelope(UUID.randomUUID(), type.wireName(),
                 Instant.parse("2026-07-01T12:00:00Z"), "test", payload);
@@ -66,11 +76,12 @@ class EventApplicationIT {
     @Test
     void referralCreatedInsertsReferralAndHistory() {
         UUID referralId = UUID.randomUUID();
+        Map<String, Object> pair = unreferredPair();
         app.apply(env(WorkflowEventType.REFERRAL_CREATED, Map.of(
                 "referralId", referralId.toString(),
-                "patientId", one("select id from patients limit 1").toString(),
+                "patientId", pair.get("patient_id").toString(),
                 "clinicId", one("select id from clinics limit 1").toString(),
-                "medicationId", one("select id from medications limit 1").toString(),
+                "medicationId", pair.get("medication_id").toString(),
                 "payerId", one("select id from payers limit 1").toString(),
                 "ownerId", one("select id from care_team_members where active limit 1").toString(),
                 "priority", "HIGH",
@@ -82,6 +93,26 @@ class EventApplicationIT {
         assertThat(jdbc.queryForObject(
                 "select count(*) from referral_status_history where referral_id = ? and phase2_event_type = 'ReferralCreated'",
                 Integer.class, referralId)).isEqualTo(1);
+    }
+
+    @Test
+    void duplicateReferralForSamePatientAndMedicationIsSkipped() {
+        // Any seeded referral's patient+medication pair already exists -> the consumer skips.
+        Map<String, Object> existing = jdbc.queryForMap(
+                "select patient_id, medication_id from referrals limit 1");
+        UUID referralId = UUID.randomUUID();
+        app.apply(env(WorkflowEventType.REFERRAL_CREATED, Map.of(
+                "referralId", referralId.toString(),
+                "patientId", existing.get("patient_id").toString(),
+                "clinicId", one("select id from clinics limit 1").toString(),
+                "medicationId", existing.get("medication_id").toString(),
+                "payerId", one("select id from payers limit 1").toString(),
+                "ownerId", one("select id from care_team_members where active limit 1").toString(),
+                "priority", "HIGH",
+                "paRequired", true)));
+
+        assertThat(jdbc.queryForObject(
+                "select count(*) from referrals where id = ?", Integer.class, referralId)).isZero();
     }
 
     @Test
@@ -184,11 +215,12 @@ class EventApplicationIT {
     @Test
     void fullJourneyToActiveTherapyAutoCreatesAndLinksTherapy() {
         UUID referralId = UUID.randomUUID();
+        Map<String, Object> pair = unreferredPair();
         app.apply(env(WorkflowEventType.REFERRAL_CREATED, Map.of(
                 "referralId", referralId.toString(),
-                "patientId", one("select id from patients limit 1").toString(),
+                "patientId", pair.get("patient_id").toString(),
                 "clinicId", one("select id from clinics limit 1").toString(),
-                "medicationId", one("select id from medications limit 1").toString(),
+                "medicationId", pair.get("medication_id").toString(),
                 "payerId", one("select id from payers limit 1").toString(),
                 "ownerId", one("select id from care_team_members where active limit 1").toString(),
                 "priority", "MEDIUM", "paRequired", true)));

@@ -75,6 +75,38 @@ export function Tile({ label, value, sub }: { label: string; value: ReactNode; s
   );
 }
 
+/**
+ * Clickable table header that toggles "field,asc" / "field,desc" sorting. The arrow shows the
+ * active direction; inactive columns show a faint two-way hint.
+ */
+export function SortableTh({
+  label,
+  field,
+  sort,
+  onSort,
+  className,
+}: {
+  label: string;
+  field: string;
+  sort: string | undefined;
+  onSort: (sort: string) => void;
+  className?: string;
+}) {
+  const [curField, curDir] = (sort ?? '').split(',');
+  const active = curField === field;
+  const next = active && curDir === 'asc' ? 'desc' : 'asc';
+  return (
+    <th className={`th-sort ${active ? 'is-sorted' : ''} ${className ?? ''}`} aria-sort={active ? (curDir === 'asc' ? 'ascending' : 'descending') : undefined}>
+      <button type="button" className="th-sort-btn" onClick={() => onSort(`${field},${next}`)}>
+        {label}
+        <span className="th-sort-icon" aria-hidden>
+          {active ? (curDir === 'asc' ? '▲' : '▼') : '↕'}
+        </span>
+      </button>
+    </th>
+  );
+}
+
 export function Card({ title, action, children }: { title?: ReactNode; action?: ReactNode; children: ReactNode }) {
   return (
     <section className="card">

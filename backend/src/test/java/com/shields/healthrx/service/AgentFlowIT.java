@@ -96,8 +96,10 @@ class AgentFlowIT {
         jdbc.update("delete from agent_tool_calls");
         jdbc.update("delete from agent_recommendations");
         patientId = jdbc.queryForObject("select id from patients limit 1", UUID.class);
+        // The single ACTIVE human (V8 collapses the care team; V9 renames them to the presenter).
         humanActorId = jdbc.queryForObject(
-                "select id from care_team_members where role not in ('System','AI Agent') limit 1", UUID.class);
+                "select id from care_team_members where active and role not in ('System','AI Agent') limit 1",
+                UUID.class);
     }
 
     private UUID created(UUID recommendationId) {

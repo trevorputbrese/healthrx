@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAgentRecommendations, useSimStatus } from '../api/hooks';
 import { relativeTime } from '../format';
 
 /**
  * One-line live strip under the simulation bar: the most recent agent action, visible from
  * every page so agent work is never out of sight. Flashes briefly when a new action lands.
+ * Hidden on the Agents view itself — the full feed is already on screen there, and a
+ * "View all" link that leads to the page you're on reads as broken.
  */
 export default function AgentTicker() {
+  const { pathname } = useLocation();
   const recommendations = useAgentRecommendations({});
   const { data: sim } = useSimStatus();
   const latest = recommendations.data?.items?.[0];
@@ -27,7 +30,7 @@ export default function AgentTicker() {
     }
   }, [latestId]);
 
-  if (!latest) {
+  if (!latest || pathname.startsWith('/agents')) {
     return null;
   }
 

@@ -40,9 +40,10 @@ public class PatientController {
     public PageResponse<PatientDtos.Summary> list(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String diseaseState,
+            @RequestParam(defaultValue = "name,asc") String sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size) {
-        return service.list(search, diseaseState, page, size);
+        return service.list(search, diseaseState, sort, page, size);
     }
 
     @GetMapping("/{id}")
