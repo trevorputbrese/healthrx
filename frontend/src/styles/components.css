@@ -1168,3 +1168,168 @@ textarea:focus {
   color: var(--danger, #b42318);
   font-size: 13px;
 }
+
+/* Per-agent accent: a colored left edge ties cards, feed rows, and the ticker together. */
+.agent-card.agent-adherence-risk,
+.agent-rec.agent-adherence-risk {
+  border-left: 3px solid var(--accent, #137a63);
+}
+.agent-card.agent-access-workflow,
+.agent-rec.agent-access-workflow {
+  border-left: 3px solid var(--primary, #0f6fb5);
+}
+
+.agent-mission {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted, #5b6b7b);
+  line-height: 1.45;
+}
+
+.agent-feed-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--text-muted, #5b6b7b);
+}
+
+/* New feed rows glow briefly so live agent work is unmissable on a projector. */
+.agent-rec.is-new {
+  animation: feed-flash 3.6s ease-out;
+}
+@keyframes feed-flash {
+  0% {
+    background: var(--info-soft, #e3f0fb);
+    box-shadow: 0 0 0 2px var(--primary, #0f6fb5);
+  }
+  100% {
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
+.agent-trace-icon {
+  flex: 0 0 20px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.agent-trace-raw {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--text-muted, #5b6b7b);
+}
+.agent-trace-raw summary {
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-faint, #8a97a5);
+}
+.agent-trace-raw code {
+  font-size: 11px;
+}
+.agent-trace-raw div {
+  word-break: break-word;
+}
+
+.agent-payer-decision .badge {
+  vertical-align: baseline;
+}
+
+.agent-pending-chip {
+  text-decoration: none;
+}
+
+/* ---- Live agent ticker (under the simulation bar, on every page) ---- */
+
+.agent-ticker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 20px;
+  font-size: 13px;
+  color: var(--text, #1c2b3a);
+  background: var(--info-soft, #e3f0fb);
+  border-bottom: 1px solid var(--border, #e3e8ee);
+  text-decoration: none;
+}
+.agent-ticker:hover {
+  background: #d5e8f9;
+}
+.agent-ticker.is-new {
+  animation: ticker-flash 3.6s ease-out;
+}
+@keyframes ticker-flash {
+  0% {
+    background: var(--primary, #0f6fb5);
+    color: #fff;
+  }
+  100% {
+    background: var(--info-soft, #e3f0fb);
+    color: var(--text, #1c2b3a);
+  }
+}
+
+.ticker-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-faint, #8a97a5);
+  flex: 0 0 auto;
+}
+.ticker-dot.on {
+  background: var(--ok, #1d7a4c);
+  animation: ticker-pulse 2s ease-in-out infinite;
+}
+@keyframes ticker-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(29, 122, 76, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(29, 122, 76, 0);
+  }
+}
+
+.ticker-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--primary-dark, #0b5991);
+  flex: 0 0 auto;
+}
+.ticker-agent {
+  font-weight: 600;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.ticker-summary {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted, #40505f);
+}
+.ticker-when {
+  white-space: nowrap;
+  color: var(--text-muted, #5b6b7b);
+  flex: 0 0 auto;
+}
+.ticker-more {
+  white-space: nowrap;
+  color: var(--primary, #0f6fb5);
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+
+/* Queue rows that just changed status flash so world movement reads instantly. */
+.data-table tr.row-changed {
+  animation: row-flash 3.2s ease-out;
+}
+@keyframes row-flash {
+  0% {
+    background: var(--warn-soft, #fdf0d7);
+  }
+  100% {
+    background: transparent;
+  }
+}

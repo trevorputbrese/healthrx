@@ -20,12 +20,14 @@ import com.shields.healthrx.domain.AgentName;
 import com.shields.healthrx.domain.InterventionType;
 import com.shields.healthrx.domain.OutreachChannel;
 import com.shields.healthrx.domain.OutreachOutcome;
+import com.shields.healthrx.domain.ReferralStatus;
 import com.shields.healthrx.repo.AgentToolCallRepository;
 import com.shields.healthrx.repo.ReferralRepository;
 import com.shields.healthrx.repo.TaskRepository;
 import com.shields.healthrx.repo.TherapyRepository;
 import com.shields.healthrx.service.FillService;
 import com.shields.healthrx.service.PatientService;
+import com.shields.healthrx.service.ReferralService;
 import com.shields.healthrx.web.ApiException;
 import com.shields.healthrx.web.EnumParsing;
 
@@ -47,19 +49,22 @@ public class AgentActionService {
     private final TaskRepository tasks;
     private final TherapyRepository therapies;
     private final ReferralRepository referrals;
+    private final ReferralService referralService;
     private final AppTime time;
     private final ObjectMapper mapper;
     private final TransactionTemplate tx;
 
     public AgentActionService(AgentToolCallRepository ledger, PatientService patients, FillService fills,
             TaskRepository tasks, TherapyRepository therapies, ReferralRepository referrals,
-            AppTime time, ObjectMapper mapper, PlatformTransactionManager txManager) {
+            ReferralService referralService, AppTime time, ObjectMapper mapper,
+            PlatformTransactionManager txManager) {
         this.ledger = ledger;
         this.patients = patients;
         this.fills = fills;
         this.tasks = tasks;
         this.therapies = therapies;
         this.referrals = referrals;
+        this.referralService = referralService;
         this.time = time;
         this.mapper = mapper;
         this.tx = new TransactionTemplate(txManager);
@@ -126,6 +131,40 @@ public class AgentActionService {
             out.put("taskId", taskId);
             out.put("ownerId", ownerId);
             out.put("dueAt", due.toString());
+            return out;
+        });
+    }
+
+    /**
+     * Records a payer's prior-authorization decision obtained by the calling agent. If the
+     * referral has already moved past PRIOR_AUTH_SUBMITTED (a rare race with the ambient
+     * simulation or a human), this is a benign no-op that reports the current status instead
+     * of failing the agent's run.
+     */
+    public String recordPriorAuthDecision(AgentName agent, UUID recommendationId, UUID referralId,
+            String decision, String authorizationNumber, String note) {
+        ReferralStatus target = switch (decision == null ? "" : decision.toUpperCase()) {
+            case "APPROVED" -> ReferralStatus.PRIOR_AUTH_APPROVED;
+            case "DENIED" -> ReferralStatus.PRIOR_AUTH_DENIED;
+            default -> throw ApiException.badRequest("INVALID_DECISION",
+                    "decision must be APPROVED or DENIED.", Map.of("decision", String.valueOf(decision)));
+        };
+        return once(recommendationId, "record_prior_auth_decision", () -> {
+            ReferralRepository.State state = referrals.loadState(referralId)
+                    .orElseThrow(() -> ApiException.notFound("Referral", referralId));
+            Map<String, Object> out = new LinkedHashMap<>();
+            if (!ReferralStatus.PRIOR_AUTH_SUBMITTED.name().equals(state.currentStatus())) {
+                out.put("applied", false);
+                out.put("currentStatus", state.currentStatus());
+                out.put("reason", "Referral is no longer awaiting a prior-auth decision.");
+                return out;
+            }
+            referralService.transition(referralId, target.name(), agent.actorId(), note);
+            out.put("applied", true);
+            out.put("newStatus", target.name());
+            if (authorizationNumber != null && !authorizationNumber.isBlank()) {
+                out.put("authorizationNumber", authorizationNumber);
+            }
             return out;
         });
     }

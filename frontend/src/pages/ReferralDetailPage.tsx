@@ -36,12 +36,19 @@ export default function ReferralDetailPage() {
                   <Link to={`/patients/${r.patient.id}`}>{r.patient.displayName}</Link>
                 </h1>
                 <p className="page-sub">
-                  {r.patient.diseaseState} · {r.medication.name} ({r.medication.route}) · {r.clinic.name}
+                  {r.patient.diseaseState} · {r.medication.name} ({r.medication.route}) · {r.clinic.name} ·{' '}
+                  <Link to={`/patients/${r.patient.id}`}>Open patient record →</Link>
                 </p>
               </div>
               <div className="detail-head-meta">
                 <StatusBadge status={r.currentStatus} />
                 <PriorityBadge priority={r.priority} />
+                {r.pendingAgentRecommendations > 0 && (
+                  <Link to="/agents" className="badge tone-info agent-pending-chip">
+                    {r.pendingAgentRecommendations} agent recommendation
+                    {r.pendingAgentRecommendations === 1 ? '' : 's'} awaiting review
+                  </Link>
+                )}
               </div>
             </div>
 

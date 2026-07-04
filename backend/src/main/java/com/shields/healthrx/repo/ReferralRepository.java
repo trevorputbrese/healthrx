@@ -254,6 +254,12 @@ public class ReferralRepository {
                 .stream().findFirst();
     }
 
+    public Optional<UUID> patientOf(UUID id) {
+        return jdbc.query("select patient_id from referrals where id = :id",
+                new MapSqlParameterSource("id", id), (rs, i) -> Columns.uuid(rs, "patient_id"))
+                .stream().findFirst();
+    }
+
     public Optional<State> loadState(UUID id) {
         String sql = """
                 select current_status, therapy_id, benefits_investigation_started_at, pa_submitted_at,

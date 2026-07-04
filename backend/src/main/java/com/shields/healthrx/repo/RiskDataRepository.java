@@ -71,6 +71,19 @@ public class RiskDataRepository {
                 new MapSqlParameterSource("ids", ids), (rs, i) -> mapTherapy(rs));
     }
 
+    /** All therapies for a set of patients (any status), for the patient directory risk rollup. */
+    public List<ActiveTherapyRow> therapiesForPatients(Collection<UUID> patientIds) {
+        if (patientIds.isEmpty()) {
+            return List.of();
+        }
+        return jdbc.query("""
+                select t.id, t.patient_id, t.medication_id, m.name as medication_name,
+                       t.status, t.start_date, t.current_refill_due_date
+                from therapies t join medications m on m.id = t.medication_id
+                where t.patient_id in (:ids)""",
+                new MapSqlParameterSource("ids", patientIds), (rs, i) -> mapTherapy(rs));
+    }
+
     private static ActiveTherapyRow mapTherapy(java.sql.ResultSet rs) throws java.sql.SQLException {
         return new ActiveTherapyRow(
                 Columns.uuid(rs, "id"), Columns.uuid(rs, "patient_id"), Columns.uuid(rs, "medication_id"),

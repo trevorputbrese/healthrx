@@ -45,11 +45,32 @@ public class ScenarioService {
         switch (name) {
             case "new-referral" -> result.put("emitted", newReferral(now));
             case "advance-referral" -> result.put("emitted", advanceReferral(now));
+            case "submit-prior-auth" -> result.put("emitted", submitPriorAuth(now));
             case "send-at-risk" -> result.put("emitted", sendAtRisk(now));
             case "resolve-risk" -> result.put("emitted", resolveRisk(now));
             default -> throw new IllegalArgumentException("Unknown scenario: " + name);
         }
         return result;
+    }
+
+    /**
+     * The Access Workflow Agent's payer beat: push the oldest pre-PA referral into
+     * PRIOR_AUTH_SUBMITTED so the agent senses it and chases the payer for a decision. Chains
+     * the benefits step first when the referral hasn't started benefits investigation yet.
+     */
+    private int submitPriorAuth(Instant now) {
+        return world.pickPaSubmittableReferral().map(ref -> {
+            int emitted = 0;
+            Map<String, Object> p = new HashMap<>();
+            p.put("referralId", ref.id().toString());
+            p.put("patientId", ref.patientId().toString());
+            if ("ELIGIBILITY_IDENTIFIED".equals(ref.currentStatus())) {
+                publisher.publish(EventTypes.BENEFITS_INVESTIGATION_STARTED, now, new HashMap<>(p));
+                emitted++;
+            }
+            publisher.publish(EventTypes.PRIOR_AUTHORIZATION_SUBMITTED, now, p);
+            return emitted + 1;
+        }).orElse(0);
     }
 
     private int newReferral(Instant now) {
@@ -73,7 +94,7 @@ public class ScenarioService {
     }
 
     private int advanceReferral(Instant now) {
-        return world.pickAdvanceableReferral().map(ref -> {
+        return world.pickAdvanceableReferral(now).map(ref -> {
             // Always push to the next clean step (benefits -> PA submitted etc.) for a predictable demo.
             String event = switch (ref.currentStatus()) {
                 case "ELIGIBILITY_IDENTIFIED" -> EventTypes.BENEFITS_INVESTIGATION_STARTED;

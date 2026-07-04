@@ -1,10 +1,12 @@
 import { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import ActingAsSelector from './ActingAsSelector';
+import AgentTicker from './AgentTicker';
 import SimulationBar from './SimulationBar';
 
 const NAV = [
   { to: '/queue', label: 'Queue' },
+  { to: '/patients', label: 'Patients' },
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/lifecycle', label: 'Referral Lifecycle' },
   { to: '/agents', label: 'Agents' },
@@ -35,6 +37,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </header>
       <SimulationBar />
+      <AgentTicker />
       <main className="app-main">{children}</main>
     </div>
   );

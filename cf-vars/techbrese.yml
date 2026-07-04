@@ -21,6 +21,10 @@ access_agent_app_name: healthrx-access-agent
 access_agent_route: healthrx-access-agent.apps.techbrese.com
 access_llm_service_instance: healthrx-access-workflow-agent-llm
 
+# ClearPath Benefits payer portal (stand-in external partner for the agent's payer beat).
+payer_portal_app_name: healthrx-payer-portal
+payer_portal_route: healthrx-payer-portal.apps.techbrese.com
+
 # Phase 3b knowledge MCP server (internal route only; path prefix = app name).
 knowledge_app_name: healthrx-knowledge-mcp
 knowledge_internal_route: healthrx-knowledge-mcp.apps.internal

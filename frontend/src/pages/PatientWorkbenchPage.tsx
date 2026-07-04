@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useLogIntervention, useLogOutreach, useLookups, usePatient, usePatientTimeline } from '../api/hooks';
 import { useActingAs } from '../state/ActingAsContext';
 import { dateOnly, dateTime, percent, titleCase } from '../format';
@@ -21,6 +21,9 @@ export default function PatientWorkbenchPage() {
 
   return (
     <div className="page">
+      <Link to="/patients" className="back-link">
+        ← Back to patients
+      </Link>
       <StateBlock query={query}>
         {(p) => (
           <>

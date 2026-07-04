@@ -55,6 +55,12 @@ healthrx:
     status-stuck-days: ${HEALTHRX_AGENT_STATUS_STUCK_DAYS:10}
     scan-cap: ${HEALTHRX_AGENT_SCAN_CAP:3}
     rate-per-minute: ${HEALTHRX_AGENT_RATE_PER_MINUTE:6}
+    # External payer portal (ClearPath Benefits) contacted for prior-auth decisions. The payer
+    # path is deterministic (no LLM), so its cap is generous — set well above the ambient
+    # stream's PA-submission rate (~6/min at full tilt) so presenter-triggered checks are never
+    # shed; human-driven (healthrx-api) submissions bypass the cap entirely.
+    payer-portal-url: ${HEALTHRX_PAYER_PORTAL_URL:http://localhost:8084}
+    payer-rate-per-minute: ${HEALTHRX_AGENT_PAYER_RATE_PER_MINUTE:30}
 
 logging:
   level:

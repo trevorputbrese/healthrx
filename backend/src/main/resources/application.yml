@@ -68,6 +68,9 @@ healthrx:
   # Base URL of the generator app; the API proxies the Simulation control panel to it.
   generator:
     url: ${HEALTHRX_GENERATOR_URL:http://localhost:8081}
+  # External payer portal (ClearPath Benefits); demo reset clears its submission memory.
+  payer-portal:
+    url: ${HEALTHRX_PAYER_PORTAL_URL:http://localhost:8084}
   # Base URLs of the agent apps; the API proxies approve/pause/status to them (phase-3-design.md §8).
   agents:
     adherence-risk:

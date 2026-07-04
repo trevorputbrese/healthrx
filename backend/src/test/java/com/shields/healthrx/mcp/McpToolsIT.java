@@ -127,6 +127,52 @@ class McpToolsIT {
     }
 
     @Test
+    void recordPriorAuthDecisionIsAccessOnly() {
+        AgentCallContext.set(AgentName.ADHERENCE_RISK);
+        assertThatThrownBy(() -> tools.recordPriorAuthDecision(UUID.randomUUID().toString(),
+                referralId.toString(), "APPROVED", "CP-1", null))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.code()).isEqualTo("TOOL_NOT_ALLOWED"));
+    }
+
+    @Test
+    void recordPriorAuthDecisionAdvancesASubmittedReferralExactlyOnce() {
+        AgentCallContext.set(AgentName.ACCESS_WORKFLOW);
+        jdbc.update("""
+                update referrals set current_status = 'PRIOR_AUTH_SUBMITTED',
+                       pa_submitted_at = now(), pa_decided_at = null where id = ?""", referralId);
+        UUID rec = UUID.randomUUID();
+
+        String first = tools.recordPriorAuthDecision(rec.toString(), referralId.toString(),
+                "APPROVED", "CP-42XYZ", "Approved by ClearPath in 1.1s");
+        String replay = tools.recordPriorAuthDecision(rec.toString(), referralId.toString(),
+                "APPROVED", "CP-42XYZ", "Approved by ClearPath in 1.1s");
+
+        assertThat(replay).isEqualTo(first);
+        assertThat(first).contains("\"applied\": true").contains("PRIOR_AUTH_APPROVED");
+        assertThat(jdbc.queryForObject("select current_status from referrals where id = ?",
+                String.class, referralId)).isEqualTo("PRIOR_AUTH_APPROVED");
+        // The transition is attributed to the agent's care-team actor in the status history.
+        assertThat(jdbc.queryForObject("""
+                select count(*) from referral_status_history
+                where referral_id = ? and to_status = 'PRIOR_AUTH_APPROVED' and changed_by_id = ?""",
+                Integer.class, referralId, AgentName.ACCESS_WORKFLOW.actorId())).isEqualTo(1);
+    }
+
+    @Test
+    void recordPriorAuthDecisionIsABenignNoOpWhenTheReferralMovedOn() {
+        AgentCallContext.set(AgentName.ACCESS_WORKFLOW);
+        jdbc.update("update referrals set current_status = 'READY_TO_FILL' where id = ?", referralId);
+
+        String result = tools.recordPriorAuthDecision(UUID.randomUUID().toString(),
+                referralId.toString(), "DENIED", null, null);
+
+        assertThat(result).contains("\"applied\": false").contains("READY_TO_FILL");
+        assertThat(jdbc.queryForObject("select current_status from referrals where id = ?",
+                String.class, referralId)).isEqualTo("READY_TO_FILL");
+    }
+
+    @Test
     void createTaskAssignsReferralOwnerWithAgentPrefixAndDeterministicId() {
         AgentCallContext.set(AgentName.ACCESS_WORKFLOW);
         UUID rec = UUID.randomUUID();

@@ -8,6 +8,7 @@ import type {
   Lookups,
   PageResponse,
   PatientDetail,
+  PatientSummary,
   ReferralDetail,
   ReferralSummary,
   SimStatus,
@@ -61,6 +62,14 @@ export function useReferral(id: string | undefined) {
     queryKey: ['referral', id],
     queryFn: () => api.get<ReferralDetail>(`/api/referrals/${id}`),
     enabled: !!id,
+  });
+}
+
+export function usePatients(params: { search?: string; diseaseState?: string; page?: number; size?: number }) {
+  return useQuery({
+    queryKey: ['patients', params],
+    queryFn: () => api.get<PageResponse<PatientSummary>>(`/api/patients${qs({ ...params })}`),
+    refetchInterval: LIVE,
   });
 }
 

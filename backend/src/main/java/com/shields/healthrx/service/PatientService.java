@@ -15,6 +15,7 @@ import com.shields.healthrx.config.AppTime;
 import com.shields.healthrx.domain.InterventionType;
 import com.shields.healthrx.domain.OutreachChannel;
 import com.shields.healthrx.domain.OutreachOutcome;
+import com.shields.healthrx.domain.RefillRiskLevel;
 import com.shields.healthrx.domain.WorkflowEventType;
 import com.shields.healthrx.metric.RefillRiskCalculator;
 import com.shields.healthrx.repo.AgentRecommendationRepository;
@@ -26,6 +27,7 @@ import com.shields.healthrx.repo.RiskDataRepository.ActiveTherapyRow;
 import com.shields.healthrx.web.ApiException;
 import com.shields.healthrx.web.dto.CommonDtos.EntityRef;
 import com.shields.healthrx.web.dto.CommonDtos.NamedRef;
+import com.shields.healthrx.web.dto.PageResponse;
 import com.shields.healthrx.web.dto.PatientDtos;
 import com.shields.healthrx.web.dto.TimelineDtos;
 
@@ -51,6 +53,40 @@ public class PatientService {
         this.agentRecommendations = agentRecommendations;
         this.events = events;
         this.time = time;
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<PatientDtos.Summary> list(String search, String diseaseState, int page, int size) {
+        int normalizedSize = Math.min(Math.max(size, 1), 100);
+        int normalizedPage = Math.max(page, 0);
+        List<PatientRepository.ListRow> rows = patients.list(search, diseaseState, normalizedPage, normalizedSize);
+        long total = patients.countList(search, diseaseState);
+
+        List<UUID> patientIds = rows.stream().map(PatientRepository.ListRow::id).toList();
+        List<ActiveTherapyRow> therapies = riskData.therapiesForPatients(patientIds);
+        Map<UUID, RefillRiskCalculator.Result> risk = riskService.compute(therapies);
+
+        Map<UUID, List<ActiveTherapyRow>> therapiesByPatient = therapies.stream()
+                .collect(java.util.stream.Collectors.groupingBy(ActiveTherapyRow::patientId));
+
+        List<PatientDtos.Summary> items = rows.stream().map(r -> {
+            List<ActiveTherapyRow> mine = therapiesByPatient.getOrDefault(r.id(), List.of());
+            RefillRiskLevel highest = mine.stream()
+                    .map(t -> risk.get(t.therapyId()))
+                    .filter(java.util.Objects::nonNull)
+                    .map(RefillRiskCalculator.Result::level)
+                    .max(Comparator.naturalOrder())
+                    .orElse(null);
+            return new PatientDtos.Summary(
+                    r.id(), r.demoMrn(), r.displayName(), r.dateOfBirth(), r.diseaseState(),
+                    new EntityRef(r.clinicId(), r.clinicName()),
+                    new EntityRef(r.payerId(), r.payerName()),
+                    new NamedRef(r.ownerId(), r.ownerName()),
+                    r.activeReferralCount(), r.openTaskCount(), mine.size(),
+                    highest == null ? null : highest.name());
+        }).toList();
+
+        return PageResponse.of(items, normalizedPage, normalizedSize, total);
     }
 
     @Transactional(readOnly = true)

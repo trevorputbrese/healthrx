@@ -99,6 +99,7 @@ export interface ReferralDetail {
   openTasks: TaskSummary[];
   recentNotes: NoteItem[];
   statusHistory: StatusHistoryItem[];
+  pendingAgentRecommendations: number;
 }
 
 export interface TherapySummary {
@@ -141,6 +142,21 @@ export interface PatientDetail {
   openTasks: TaskSummary[];
   recentOutreach: OutreachItem[];
   recentInterventions: InterventionItem[];
+}
+
+export interface PatientSummary {
+  id: string;
+  demoMrn: string;
+  displayName: string;
+  dateOfBirth: string;
+  diseaseState: string;
+  clinic: EntityRef;
+  payer: EntityRef;
+  primaryOwner: NamedRef;
+  activeReferralCount: number;
+  openTaskCount: number;
+  therapyCount: number;
+  highestRefillRiskLevel?: RiskLevel;
 }
 
 export interface TimelineItem {

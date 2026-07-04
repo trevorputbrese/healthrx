@@ -11,11 +11,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.shields.healthrx.config.AppTime;
 import com.shields.healthrx.domain.ReferralStatus;
+import com.shields.healthrx.domain.SystemActors;
 import com.shields.healthrx.domain.WorkflowEventType;
+import com.shields.healthrx.messaging.WorkflowEventPublisher;
 import com.shields.healthrx.metric.MetricCalculations;
 import com.shields.healthrx.metric.RefillRiskCalculator;
 import com.shields.healthrx.repo.AgentRecommendationRepository;
 import com.shields.healthrx.repo.CareTeamRepository;
+import com.shields.healthrx.repo.ProcessedEventRepository;
 import com.shields.healthrx.repo.QueueFilter;
 import com.shields.healthrx.repo.ReferralRepository;
 import com.shields.healthrx.repo.ReferralRepository.DetailRow;
@@ -40,17 +43,22 @@ public class ReferralService {
     private final RefillRiskService riskService;
     private final AgentRecommendationRepository agentRecommendations;
     private final EventLog events;
+    private final WorkflowEventPublisher eventPublisher;
+    private final ProcessedEventRepository processedEvents;
     private final AppTime time;
 
     public ReferralService(ReferralRepository referrals, CareTeamRepository careTeam, TherapyRepository therapies,
                            RefillRiskService riskService, AgentRecommendationRepository agentRecommendations,
-                           EventLog events, AppTime time) {
+                           EventLog events, WorkflowEventPublisher eventPublisher,
+                           ProcessedEventRepository processedEvents, AppTime time) {
         this.referrals = referrals;
         this.careTeam = careTeam;
         this.therapies = therapies;
         this.riskService = riskService;
         this.agentRecommendations = agentRecommendations;
         this.events = events;
+        this.eventPublisher = eventPublisher;
+        this.processedEvents = processedEvents;
         this.time = time;
     }
 
@@ -147,6 +155,23 @@ public class ReferralService {
         referrals.insertStatusHistory(new StatusHistoryInsert(
                 historyId, id, from.name(), to.name(), now, changedById, note, event.wireName()));
         events.emit(event, id, null, "from=" + from.name() + " to=" + to.name());
+
+        // A PA submitted by a person (not by the event consumer replaying a generator event, and
+        // not by an agent) is re-broadcast so the Access Workflow Agent can chase the payer. The
+        // eventId is pre-claimed in processed_events within THIS transaction so the API's own
+        // consumer skips the re-broadcast entirely (late consumption could otherwise regress a
+        // referral the agent already decided back to PRIOR_AUTH_SUBMITTED via the resubmit edge).
+        if (to == ReferralStatus.PRIOR_AUTH_SUBMITTED && !SystemActors.SYSTEM.equals(changedById)) {
+            UUID patientId = referrals.patientOf(id).orElse(null);
+            Map<String, Object> payload = new java.util.LinkedHashMap<>();
+            payload.put("referralId", id.toString());
+            if (patientId != null) {
+                payload.put("patientId", patientId.toString());
+            }
+            UUID eventId = UUID.randomUUID();
+            processedEvents.claim(eventId, event.wireName(), eventPublisher.source(), now);
+            eventPublisher.publishAfterCommit(eventId, event, now, payload);
+        }
 
         var historyItem = new ReferralDtos.StatusHistoryItem(historyId, from.name(), to.name(), now, actor, note);
         return new ReferralDtos.TransitionResult(id, to.name(), names(to.allowedNextStatuses()), historyItem);

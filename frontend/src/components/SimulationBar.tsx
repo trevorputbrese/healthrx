@@ -10,6 +10,7 @@ const SPEEDS: { value: number; label: string }[] = [
 const SCENARIO_LABELS: Record<string, string> = {
   'new-referral': 'New referral',
   'advance-referral': 'Advance a referral',
+  'submit-prior-auth': 'Submit prior auth',
   'send-at-risk': 'Send at-risk',
   'resolve-risk': 'Resolve risk',
 };

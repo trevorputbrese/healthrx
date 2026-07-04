@@ -21,7 +21,7 @@ import com.shields.healthrx.generator.sim.SimulationStateRepository.State;
 public class SimController {
 
     private static final List<String> SCENARIOS =
-            List.of("new-referral", "advance-referral", "send-at-risk", "resolve-risk");
+            List.of("new-referral", "advance-referral", "submit-prior-auth", "send-at-risk", "resolve-risk");
 
     private final SimulationClock clock;
     private final ScenarioService scenarios;

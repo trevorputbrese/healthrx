@@ -48,6 +48,7 @@ const detail: ReferralDetail = {
     { id: 'h4', fromStatus: 'PRIOR_AUTH_SUBMITTED', toStatus: 'PRIOR_AUTH_APPROVED', changedAt: '2026-06-08T13:00:00Z' },
     { id: 'h5', fromStatus: 'PRIOR_AUTH_APPROVED', toStatus: 'FINANCIAL_ASSISTANCE_REVIEW', changedAt: '2026-06-10T13:00:00Z' },
   ],
+  pendingAgentRecommendations: 0,
 };
 
 afterEach(() => vi.unstubAllGlobals());

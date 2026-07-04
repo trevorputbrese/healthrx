@@ -4,8 +4,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * Agent wiring: identity (name + shared secret through the gateway), MCP gateway base URL and
- * per-server endpoints, and the autonomy tuning knobs (stuck-scan thresholds, per-scan cap, and
- * the real-time LLM rate cap). See phase-3-design.md §4/§6.
+ * per-server endpoints, the autonomy tuning knobs (stuck-scan thresholds, per-scan cap, and
+ * the real-time LLM rate cap), and the external payer portal the agent contacts for prior-auth
+ * decisions. See phase-3-design.md §4/§6.
  */
 @ConfigurationProperties(prefix = "healthrx.agent")
 public record AgentProperties(
@@ -20,5 +21,7 @@ public record AgentProperties(
         int paStuckDays,
         int statusStuckDays,
         int scanCap,
-        int ratePerMinute) {
+        int ratePerMinute,
+        String payerPortalUrl,
+        int payerRatePerMinute) {
 }

@@ -22,7 +22,7 @@ public class HealthRxActionTools {
 
     private static final Map<AgentName, Set<String>> ALLOWED = Map.of(
             AgentName.ADHERENCE_RISK, Set.of("log_outreach", "create_intervention", "record_prescription_fill"),
-            AgentName.ACCESS_WORKFLOW, Set.of("create_task"));
+            AgentName.ACCESS_WORKFLOW, Set.of("create_task", "record_prior_auth_decision"));
 
     private final AgentActionService actions;
 
@@ -90,6 +90,22 @@ public class HealthRxActionTools {
         authorize("create_task");
         return actions.createTask(parse(recommendationId, "recommendationId"), parse(patientId, "patientId"),
                 parse(referralId, "referralId"), priority, title, description, dueAt);
+    }
+
+    @Tool(name = "record_prior_auth_decision", description = """
+            Record a prior-authorization decision obtained from the payer for a referral in
+            PRIOR_AUTH_SUBMITTED: APPROVED advances it to PRIOR_AUTH_APPROVED, DENIED to
+            PRIOR_AUTH_DENIED, with the payer context captured in the status history. If the
+            referral already moved on, returns applied=false with the current status. Returns JSON.""")
+    public String recordPriorAuthDecision(
+            @ToolParam(description = "The recommendation id this action belongs to") String recommendationId,
+            @ToolParam(description = "Referral UUID") String referralId,
+            @ToolParam(description = "Decision: APPROVED or DENIED") String decision,
+            @ToolParam(description = "Payer authorization number (for approvals)", required = false) String authorizationNumber,
+            @ToolParam(description = "Status-history note, e.g. payer name and turnaround", required = false) String note) {
+        AgentName agent = authorize("record_prior_auth_decision");
+        return actions.recordPriorAuthDecision(agent, parse(recommendationId, "recommendationId"),
+                parse(referralId, "referralId"), decision, authorizationNumber, note);
     }
 
     /** Call-time authorization: a valid agent identity whose allow-list contains the tool. */

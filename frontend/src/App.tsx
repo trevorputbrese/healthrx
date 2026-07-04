@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from './components/AppLayout';
 import QueuePage from './pages/QueuePage';
 import ReferralDetailPage from './pages/ReferralDetailPage';
+import PatientsPage from './pages/PatientsPage';
 import PatientWorkbenchPage from './pages/PatientWorkbenchPage';
 import DashboardPage from './pages/DashboardPage';
 import LifecyclePage from './pages/LifecyclePage';
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/queue" element={<QueuePage />} />
         <Route path="/lifecycle" element={<LifecyclePage />} />
         <Route path="/referrals/:referralId" element={<ReferralDetailPage />} />
+        <Route path="/patients" element={<PatientsPage />} />
         <Route path="/patients/:patientId" element={<PatientWorkbenchPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/agents" element={<AgentsPage />} />

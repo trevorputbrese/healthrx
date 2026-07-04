@@ -19,6 +19,7 @@ import com.shields.healthrx.domain.OutreachChannel;
 import com.shields.healthrx.domain.OutreachOutcome;
 import com.shields.healthrx.domain.TimelineType;
 import com.shields.healthrx.service.PatientService;
+import com.shields.healthrx.web.dto.PageResponse;
 import com.shields.healthrx.web.dto.PatientDtos;
 import com.shields.healthrx.web.dto.TimelineDtos;
 import com.shields.healthrx.web.request.Requests;
@@ -33,6 +34,15 @@ public class PatientController {
 
     public PatientController(PatientService service) {
         this.service = service;
+    }
+
+    @GetMapping
+    public PageResponse<PatientDtos.Summary> list(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String diseaseState,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        return service.list(search, diseaseState, page, size);
     }
 
     @GetMapping("/{id}")

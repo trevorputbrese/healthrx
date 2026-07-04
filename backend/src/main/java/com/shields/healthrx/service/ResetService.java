@@ -1,17 +1,21 @@
 package com.shields.healthrx.service;
 
 import java.sql.Connection;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
 
 import com.shields.healthrx.config.ClockConfig;
 import com.shields.healthrx.domain.AgentName;
@@ -40,9 +44,19 @@ public class ResetService {
     private static final int DEFAULT_SPEED = 86400;
 
     private final JdbcTemplate jdbc;
+    private final RestClient payerPortal;
 
-    public ResetService(JdbcTemplate jdbc) {
+    public ResetService(JdbcTemplate jdbc,
+            @Value("${healthrx.payer-portal.url:}") String payerPortalUrl) {
         this.jdbc = jdbc;
+        if (payerPortalUrl == null || payerPortalUrl.isBlank()) {
+            this.payerPortal = null;
+        } else {
+            SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+            factory.setConnectTimeout(Duration.ofSeconds(3));
+            factory.setReadTimeout(Duration.ofSeconds(5));
+            this.payerPortal = RestClient.builder().baseUrl(payerPortalUrl).requestFactory(factory).build();
+        }
     }
 
     @Transactional
@@ -91,5 +105,17 @@ public class ResetService {
         }
 
         log.warn("DEMO RESET: data wiped and reseeded; simulation paused at {}; agents paused", anchor);
+
+        // 6. Best-effort: reset the external payer portal's submission memory so a re-run of the
+        // demo adjudicates identically (same referral numbers reseed, and the portal's
+        // deny-on-first-attempt rule would otherwise silently flip to approve).
+        if (payerPortal != null) {
+            try {
+                payerPortal.post().uri("/api/admin/reset").retrieve().toBodilessEntity();
+                log.info("Payer portal submission memory reset");
+            } catch (Exception e) {
+                log.warn("Payer portal reset failed (portal offline?) — reruns may adjudicate differently", e);
+            }
+        }
     }
 }

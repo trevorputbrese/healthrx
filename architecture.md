@@ -58,7 +58,7 @@ flowchart LR
 
 ## Full System Architecture (As Built)
 
-Phases 1-3 are all implemented and deployed. This is the complete picture — six Cloud Foundry
+Phases 1-3 are all implemented and deployed. This is the complete picture — seven Cloud Foundry
 apps and five marketplace service instances — in one diagram, superseding the incremental
 per-phase sketches above (kept for their historical narrative).
 
@@ -71,6 +71,10 @@ flowchart TB
         Gen["Generator"]
         Adh["Adherence Risk Agent<br/>recommend-only"]
         Acc["Access Workflow Agent<br/>autonomous"]
+    end
+
+    subgraph External["External partner (stand-in app)"]
+        Payer["ClearPath Benefits<br/>payer prior-auth portal"]
     end
 
     subgraph Data["Messaging & data (marketplace)"]
@@ -106,6 +110,7 @@ flowchart TB
     Acc --> LLM2
     Adh -->|reads + acts| GW
     Acc -->|reads + acts| GW
+    Acc -->|"prior-auth decisions<br/>(plain HTTPS — external API)"| Payer
 
     PGMCP -.->|read-only grant| PG
     HMCP -.->|domain services| PG
@@ -116,6 +121,18 @@ flowchart TB
 ```
 
 Notes that don't fit neatly into the boxes above:
+
+- **The payer portal is deliberately outside the MCP/gateway world.** ClearPath Benefits is a
+  stand-in for a real external company (an insurance clearinghouse), so the Access Workflow
+  Agent calls its REST API over plain HTTPS — external partners don't sit behind your MCP
+  gateway. Everything the agent then does *inside* HealthRx with the payer's answer (recording
+  the decision, routing an appeal task) still goes through the audited gateway tools
+  (`record_prior_auth_decision`, `create_task`). The portal binds no HealthRx services.
+- **PA submissions reach the agent three ways**: the generator's ambient stream and the
+  `submit-prior-auth` scenario publish `PriorAuthorizationSubmitted` directly, and the API
+  re-broadcasts the same event when a *human* advances a referral into PA-submitted from the UI
+  (only for human actors — consumer-applied and agent-driven transitions don't re-publish, which
+  is what prevents duplicate agent runs).
 
 - **One `ai-models` instance per agent, not shared** — so token usage/latency attribute per
   agent on the platform dashboards, not just per app.

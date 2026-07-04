@@ -45,6 +45,22 @@ public final class PatientDtos {
             Instant occurredAt) {
     }
 
+    /** Patient directory row: identity plus a workload/risk rollup. */
+    public record Summary(
+            UUID id,
+            String demoMrn,
+            String displayName,
+            LocalDate dateOfBirth,
+            String diseaseState,
+            EntityRef clinic,
+            EntityRef payer,
+            NamedRef primaryOwner,
+            long activeReferralCount,
+            long openTaskCount,
+            int therapyCount,
+            String highestRefillRiskLevel) {
+    }
+
     public record Detail(
             UUID id,
             String demoMrn,

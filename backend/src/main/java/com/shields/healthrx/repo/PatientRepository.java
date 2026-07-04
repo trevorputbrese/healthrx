@@ -44,6 +44,61 @@ public class PatientRepository {
         return n != null && n > 0;
     }
 
+    public record ListRow(
+            UUID id, String demoMrn, String displayName, LocalDate dateOfBirth, String diseaseState,
+            UUID clinicId, String clinicName, UUID payerId, String payerName,
+            UUID ownerId, String ownerName, long activeReferralCount, long openTaskCount) {
+    }
+
+    public List<ListRow> list(String search, String diseaseState, int page, int size) {
+        StringBuilder sql = new StringBuilder("""
+                select p.id, p.demo_mrn, p.first_name || ' ' || p.last_name as display_name,
+                       p.date_of_birth, p.disease_state, c.id as clinic_id, c.name as clinic_name,
+                       pay.id as payer_id, pay.name as payer_name,
+                       ct.id as owner_id, ct.display_name as owner_name,
+                       (select count(*) from referrals r
+                         where r.patient_id = p.id
+                           and r.current_status not in ('ACTIVE_THERAPY','CANCELLED')) as active_referral_count,
+                       (select count(*) from tasks t
+                         where t.patient_id = p.id and t.status in ('OPEN','IN_PROGRESS')) as open_task_count""");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        sql.append(listFrom(search, diseaseState, params));
+        sql.append(" order by display_name asc limit :limit offset :offset");
+        params.addValue("limit", size).addValue("offset", (long) page * size);
+        return jdbc.query(sql.toString(), params, (rs, i) -> new ListRow(
+                Columns.uuid(rs, "id"), rs.getString("demo_mrn"), rs.getString("display_name"),
+                Columns.localDate(rs, "date_of_birth"), rs.getString("disease_state"),
+                Columns.uuid(rs, "clinic_id"), rs.getString("clinic_name"),
+                Columns.uuid(rs, "payer_id"), rs.getString("payer_name"),
+                Columns.uuid(rs, "owner_id"), rs.getString("owner_name"),
+                rs.getLong("active_referral_count"), rs.getLong("open_task_count")));
+    }
+
+    public long countList(String search, String diseaseState) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        Long n = jdbc.queryForObject("select count(*)" + listFrom(search, diseaseState, params), params, Long.class);
+        return n == null ? 0 : n;
+    }
+
+    private static String listFrom(String search, String diseaseState, MapSqlParameterSource params) {
+        StringBuilder sql = new StringBuilder("""
+
+                from patients p
+                join clinics c on c.id = p.clinic_id
+                join payers pay on pay.id = p.payer_id
+                join care_team_members ct on ct.id = p.primary_owner_id
+                where 1=1""");
+        if (search != null && !search.isBlank()) {
+            sql.append(" and (p.first_name || ' ' || p.last_name ilike :search or p.demo_mrn ilike :search)");
+            params.addValue("search", "%" + search.trim() + "%");
+        }
+        if (diseaseState != null && !diseaseState.isBlank()) {
+            sql.append(" and p.disease_state = :disease");
+            params.addValue("disease", diseaseState.trim());
+        }
+        return sql.toString();
+    }
+
     public Optional<HeaderRow> findHeader(UUID id) {
         var rows = jdbc.query("""
                 select p.id, p.demo_mrn, p.first_name || ' ' || p.last_name as display_name,

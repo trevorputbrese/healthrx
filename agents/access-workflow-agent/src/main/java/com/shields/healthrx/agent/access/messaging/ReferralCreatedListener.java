@@ -8,8 +8,12 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shields.healthrx.agent.access.core.AccessAgentService;
+import com.shields.healthrx.agent.access.core.PayerCheckService;
 
-/** Senses new-referral triage triggers off the agent's narrow-bound durable queue. */
+/**
+ * Senses the agent's triggers off its narrow-bound durable queue and dispatches by event type:
+ * ReferralCreated -> LLM triage; PriorAuthorizationSubmitted -> deterministic payer follow-up.
+ */
 @Component
 @ConditionalOnProperty(name = "healthrx.events.consumer.enabled", havingValue = "true", matchIfMissing = true)
 public class ReferralCreatedListener {
@@ -17,10 +21,12 @@ public class ReferralCreatedListener {
     private static final Logger log = LoggerFactory.getLogger(ReferralCreatedListener.class);
 
     private final AccessAgentService agent;
+    private final PayerCheckService payerCheck;
     private final ObjectMapper mapper;
 
-    public ReferralCreatedListener(AccessAgentService agent, ObjectMapper mapper) {
+    public ReferralCreatedListener(AccessAgentService agent, PayerCheckService payerCheck, ObjectMapper mapper) {
         this.agent = agent;
+        this.payerCheck = payerCheck;
         this.mapper = mapper;
     }
 
@@ -34,7 +40,11 @@ public class ReferralCreatedListener {
             return;
         }
         try {
-            agent.onReferralCreated(env);
+            switch (env.eventType() == null ? "" : env.eventType()) {
+                case "ReferralCreated" -> agent.onReferralCreated(env);
+                case "PriorAuthorizationSubmitted" -> payerCheck.onPriorAuthSubmitted(env);
+                default -> log.debug("Ignoring event type {}", env.eventType());
+            }
         } catch (Exception e) {
             // Deterministic ids + the emit-repair guard make a lost run safe; log, don't requeue-loop.
             log.error("Agent run failed for trigger {}", env.eventId(), e);

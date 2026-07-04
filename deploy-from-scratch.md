@@ -1,7 +1,7 @@
 # Deploying HealthRx to a New Tanzu Platform for CF Foundation
 
 Everything the demo needs, from an empty org/space to the verified demo beats. Total: **5
-marketplace service instances** and **6 apps**, all built and pushed from this one repo.
+marketplace service instances** and **7 apps**, all built and pushed from this one repo.
 
 | # | App | Binds | Route |
 | --- | --- | --- | --- |
@@ -11,6 +11,7 @@ marketplace service instances** and **6 apps**, all built and pushed from this o
 | 4 | `healthrx-access-agent` | rabbitmq, access LLM | public |
 | 5 | `healthrx-knowledge-mcp` | **mcp-gw** (registers `/healthrx-knowledge-mcp/mcp`) | internal only |
 | 6 | `healthrx-postgres-mcp-server` (`mcp-servers/postgres/`, Maven) | postgres, **mcp-gw** (registers `/healthrx-postgres-mcp-server/mcp`) | internal only |
+| 7 | `healthrx-payer-portal` (ClearPath Benefits — stand-in **external partner**, `partners/payer-portal/`) | nothing (deliberately: it plays another company) | public |
 
 Prerequisites: `cf` CLI v8+, JDK 17+ (backend/agents/knowledge server) — app 6 targets Java 21,
 so JDK 21 too if you don't want to rely solely on the buildpack's JRE — and a foundation with the
@@ -70,7 +71,7 @@ the advertised model id, and set `genai_model_name` to that exact string.
 ## 3. Build everything
 
 ```bash
-./gradlew clean build                              # apps 1-5 (backend, SPA, generator, 2 agents, knowledge server)
+./gradlew clean build                              # apps 1-5 + 7 (backend, SPA, generator, 2 agents, knowledge server, payer portal)
 (cd mcp-servers/postgres && ./mvnw -q package -DskipTests)   # app 6 (Postgres MCP server, Maven)
 ```
 
@@ -84,11 +85,13 @@ isn't part of the Gradle multi-project, so it needs this one extra command.
 cf push --vars-file cf-vars/<foundation>.yml
 ```
 
-One push does all six apps: the manifest binds each to its services, and the `healthrx-mcp-gw`
+One push does all seven apps: the manifest binds each to its services, and the `healthrx-mcp-gw`
 bindings **are** the MCP-server registrations (binding an app to the gateway registers it under
 `/<app-name>/mcp` — that's why three apps carry internal routes: the gateway requires one on any
 app it registers). Flyway migrates and seeds the database on the API's first start; both agents
-come up **paused** (by design — resume them from the Agents view).
+come up **paused** (by design — resume them from the Agents view). The payer portal is reached by
+the access agent over plain HTTPS via `HEALTHRX_PAYER_PORTAL_URL` (set in the manifest from
+`payer_portal_route`) — an external partner API on purpose, not an MCP-gateway registration.
 
 ## 5. Verify
 

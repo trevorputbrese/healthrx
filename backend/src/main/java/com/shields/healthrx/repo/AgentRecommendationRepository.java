@@ -159,7 +159,7 @@ public class AgentRecommendationRepository {
         return jdbc.query(SELECT + """
                 where (:status::text is null or r.status = :status)
                   and (:agent::text is null or r.agent_name = :agent)
-                order by r.created_at desc, r.id
+                order by r.inserted_at desc, r.created_at desc, r.id
                 limit :limit offset :offset""", params, MAPPER);
     }
 

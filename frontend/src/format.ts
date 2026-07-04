@@ -20,6 +20,25 @@ export function dateTime(iso: string | undefined | null): string {
   return d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+/**
+ * Compact "how long ago" for live feeds; falls back to the full date after a day. Pass the
+ * SIMULATED now (from /api/simulation/status) — timestamps in this app live on the sim clock,
+ * so wall-clock deltas would be meaningless.
+ */
+export function relativeTime(iso: string | undefined | null, nowIso?: string): string {
+  if (!iso) return '—';
+  const now = nowIso ? new Date(nowIso).getTime() : Date.now();
+  const seconds = Math.round((now - new Date(iso).getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const d = Math.floor(hours / 24);
+  if (d <= 14) return `${d}d ago`;
+  return dateTime(iso);
+}
+
 export function days(n: number | undefined | null): string {
   if (n === undefined || n === null) return '—';
   return `${n.toFixed(1)} d`;

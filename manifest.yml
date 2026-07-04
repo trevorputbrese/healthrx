@@ -34,6 +34,8 @@ applications:
       # Phase 3: the API proxies agent approve/pause/status to the agent apps.
       HEALTHRX_ADHERENCE_AGENT_URL: "https://((adherence_agent_route))"
       HEALTHRX_ACCESS_AGENT_URL: "https://((access_agent_route))"
+      # Demo reset also clears the external payer portal's submission memory (best-effort).
+      HEALTHRX_PAYER_PORTAL_URL: "https://((payer_portal_route))"
       # Phase 3: per-agent shared secrets guarding the embedded MCP action tools until SSO.
       HEALTHRX_MCP_KEY_ADHERENCE: ((mcp_key_adherence))
       HEALTHRX_MCP_KEY_ACCESS: ((mcp_key_access))
@@ -88,6 +90,8 @@ applications:
       HEALTHRX_MCP_GATEWAY_URL: ((mcp_gateway_url))
       HEALTHRX_MCP_KEY_ACCESS: ((mcp_key_access))
       GENAI_MODEL: ((genai_model_name))
+      # External payer portal (ClearPath Benefits) the agent contacts for PA decisions.
+      HEALTHRX_PAYER_PORTAL_URL: "https://((payer_portal_route))"
 
   # Phase 3b knowledge MCP server — curated drug/disease guidance tools, registered behind the
   # gateway (internal route only; nothing but the gateway calls it).
@@ -128,6 +132,24 @@ applications:
     env:
       # This app targets Java 21 (the rest of HealthRx targets 17).
       JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 21.+ } }'
+      JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"
+
+  # ClearPath Benefits payer portal — a stand-in EXTERNAL partner (fictional insurance
+  # clearinghouse) the Access Workflow Agent calls over plain HTTPS for prior-auth decisions.
+  # Deliberately unbound from every HealthRx service: it represents another company.
+  - name: ((payer_portal_app_name))
+    path: partners/payer-portal/build/libs/healthrx-payer-portal.jar
+    memory: 768M
+    disk_quota: 1G
+    instances: 1
+    buildpacks:
+      - ((buildpack))
+    health-check-type: http
+    health-check-http-endpoint: /actuator/health/liveness
+    routes:
+      - route: ((payer_portal_route))
+    env:
+      JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 17.+ } }'
       JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"
 
   # Phase 2 synthetic data generator — advances the simulated clock and publishes the ambient

@@ -64,7 +64,7 @@ public class AmbientGenerator {
     }
 
     private void advanceReferral(Instant simNow) {
-        world.pickAdvanceableReferral().ifPresent(ref -> {
+        world.pickAdvanceableReferral(simNow).ifPresent(ref -> {
             String event = flow.nextEvent(ref.currentStatus(), rnd);
             if (event == null) {
                 return;

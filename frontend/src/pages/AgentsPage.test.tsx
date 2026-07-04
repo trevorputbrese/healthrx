@@ -126,7 +126,9 @@ describe('AgentsPage', () => {
 
     fireEvent.click(await screen.findByText('Reach Marlowe about the missed Neuraxol refill'));
 
-    expect(await screen.findByText('Thought process')).toBeInTheDocument();
+    expect(await screen.findByText('What the agent did, step by step')).toBeInTheDocument();
+    // Tool calls are narrated in plain English, with the raw call collapsed behind a details element.
+    expect(screen.getByText(/Queried the HealthRx database/)).toBeInTheDocument();
     expect(screen.getByText('executeQuery')).toBeInTheDocument();
     expect(screen.getByText('Approve & apply')).toBeInTheDocument();
     expect(screen.getByText(/Refill overdue and two unanswered calls/)).toBeInTheDocument();

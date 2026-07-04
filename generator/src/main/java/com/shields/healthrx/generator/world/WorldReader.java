@@ -34,14 +34,24 @@ public class WorldReader {
         return rs.getObject(col, UUID.class);
     }
 
-    /** A random in-flight referral (not active/cancelled) to advance one step. */
-    public Optional<ReferralRef> pickAdvanceableReferral() {
+    /**
+     * A random in-flight referral (not active/cancelled) to advance one step. Referrals whose
+     * prior auth was submitted within the last 6 simulated days are excluded: the Access
+     * Workflow Agent owns fresh PA decisions (it contacts the payer portal within seconds), and
+     * the ambient stream adjudicating the same referral in parallel could visibly contradict
+     * the payer's on-screen decision. Older submissions remain fair game so the world still
+     * moves when the agent is paused.
+     */
+    public Optional<ReferralRef> pickAdvanceableReferral(java.time.Instant simNow) {
         List<ReferralRef> rows = jdbc.query("""
                 select id, current_status, patient_id, therapy_id from referrals
                 where current_status not in ('ACTIVE_THERAPY', 'CANCELLED')
+                  and not (current_status = 'PRIOR_AUTH_SUBMITTED'
+                           and pa_submitted_at > ?::timestamptz - interval '6 days')
                 order by random() limit 1""",
                 (rs, i) -> new ReferralRef(uuid(rs, "id"), rs.getString("current_status"),
-                        uuid(rs, "patient_id"), uuid(rs, "therapy_id")));
+                        uuid(rs, "patient_id"), uuid(rs, "therapy_id")),
+                simNow.toString());
         return rows.stream().findFirst();
     }
 
@@ -71,6 +81,23 @@ public class WorldReader {
                         rs.getObject("current_refill_due_date", LocalDate.class),
                         rs.getInt("days_supply"), uuid(rs, "owner_id")),
                 asOf.plusDays(3));
+        return rows.stream().findFirst();
+    }
+
+    /**
+     * The oldest referral that can plausibly have a PA submitted next: prefer one already in
+     * BENEFITS_INVESTIGATION, else fall back to ELIGIBILITY_IDENTIFIED (the scenario chains the
+     * benefits step first). Oldest-first keeps the presenter demo deterministic.
+     */
+    public Optional<ReferralRef> pickPaSubmittableReferral() {
+        List<ReferralRef> rows = jdbc.query("""
+                select id, current_status, patient_id, therapy_id from referrals
+                where current_status in ('BENEFITS_INVESTIGATION', 'ELIGIBILITY_IDENTIFIED')
+                order by case current_status when 'BENEFITS_INVESTIGATION' then 0 else 1 end,
+                         received_at asc
+                limit 1""",
+                (rs, i) -> new ReferralRef(uuid(rs, "id"), rs.getString("current_status"),
+                        uuid(rs, "patient_id"), uuid(rs, "therapy_id")));
         return rows.stream().findFirst();
     }
 

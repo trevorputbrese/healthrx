@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   useAgentPause,
   useAgentRecommendations,
   useAgents,
   useRecommendationDecision,
+  useSimStatus,
 } from '../api/hooks';
 import type { AgentRecommendation, AgentStatus, TraceStep } from '../api/types';
 import { useActingAs } from '../state/ActingAsContext';
 import { Card, Chip, EmptyState, StateBlock } from '../components/ui';
-import { dateTime } from '../format';
+import { relativeTime } from '../format';
 
 const STATUS_TONES: Record<string, string> = {
   PENDING: 'tone-warn',
@@ -20,7 +21,36 @@ const STATUS_TONES: Record<string, string> = {
   SUPERSEDED: 'tone-muted',
 };
 
+/** Plain-English status labels: the raw enum reads as jargon on a projector. */
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Awaiting approval',
+  APPLYING: 'Applying…',
+  APPLIED: 'Approved & applied',
+  AUTO_APPLIED: 'Acted autonomously',
+  DISMISSED: 'Dismissed',
+  SUPERSEDED: 'Superseded',
+};
+
 const STATUS_FILTERS = ['ALL', 'PENDING', 'APPLIED', 'AUTO_APPLIED', 'DISMISSED', 'SUPERSEDED'];
+
+const FILTER_LABELS: Record<string, string> = {
+  ALL: 'All',
+  PENDING: 'Awaiting approval',
+  APPLIED: 'Approved & applied',
+  AUTO_APPLIED: 'Autonomous',
+  DISMISSED: 'Dismissed',
+  SUPERSEDED: 'Superseded',
+};
+
+/** What each agent does, in one glance — shown on its status card. */
+const AGENT_MISSIONS: Record<string, string> = {
+  'adherence-risk':
+    'Watches for missed refills. Investigates the patient’s history, drafts an outreach call ' +
+    'script and intervention plan, then waits for a pharmacist to approve before acting.',
+  'access-workflow':
+    'Watches new, stuck, and prior-auth-submitted referrals. Investigates each case, routes ' +
+    'follow-up tasks to owners, and contacts the payer’s portal for PA decisions — fully autonomously.',
+};
 
 export default function AgentsPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -28,14 +58,40 @@ export default function AgentsPage() {
   const recommendations = useAgentRecommendations({
     status: statusFilter === 'ALL' ? undefined : statusFilter,
   });
+  const { data: sim } = useSimStatus();
+
+  // Flash rows that arrive while the page is open (skip the initial load). Reset the tracking
+  // when the filter changes — rows that merely became visible under a new filter aren't new.
+  const seenIds = useRef<Set<string> | null>(null);
+  const [newIds, setNewIds] = useState<Set<string>>(new Set());
+  const items = recommendations.data?.items;
+  useEffect(() => {
+    seenIds.current = null;
+    setNewIds((cur) => (cur.size ? new Set<string>() : cur));
+  }, [statusFilter]);
+  useEffect(() => {
+    if (!items) return;
+    if (seenIds.current === null) {
+      seenIds.current = new Set(items.map((r) => r.id));
+      return;
+    }
+    const fresh = items.filter((r) => !seenIds.current!.has(r.id)).map((r) => r.id);
+    if (fresh.length > 0) {
+      fresh.forEach((id) => seenIds.current!.add(id));
+      setNewIds(new Set(fresh));
+      const timer = setTimeout(() => setNewIds(new Set()), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [items]);
 
   return (
     <div className="page">
       <div className="page-head">
         <h1>Agents</h1>
         <p className="page-sub">
-          AI care-team agents: what they saw, what they reasoned, and what they did — every read
-          and write is an audited MCP gateway tool call.
+          Two AI teammates work this queue alongside the humans. Every read and write they make
+          against HealthRx goes through the audited MCP gateway; the feed below narrates each run —
+          what triggered it, what the agent found, and what it did about it.
         </p>
       </div>
 
@@ -43,7 +99,7 @@ export default function AgentsPage() {
         {(data) => (
           <div className="agent-cards">
             {data.agents.map((agent) => (
-              <AgentCard key={agent.name} agent={agent} />
+              <AgentCard key={agent.name} agent={agent} simNow={sim?.currentInstant} />
             ))}
           </div>
         )}
@@ -60,20 +116,30 @@ export default function AgentsPage() {
                 className={statusFilter === f ? 'chip-button is-active' : 'chip-button'}
                 onClick={() => setStatusFilter(f)}
               >
-                {f === 'ALL' ? 'All' : f.replace('_', ' ')}
+                {FILTER_LABELS[f]}
               </button>
             ))}
           </div>
         }
       >
+        <p className="agent-feed-hint">
+          Newest first. Each entry is one autonomous run — expand it to see the agent’s
+          step-by-step work. <strong>Awaiting approval</strong> entries need a human decision;{' '}
+          <strong>Acted autonomously</strong> entries were completed by the agent on its own.
+        </p>
         <StateBlock query={recommendations}>
           {(page) =>
             page.items.length === 0 ? (
-              <EmptyState message="No agent activity yet. Resume an agent and trigger a scenario." />
+              <EmptyState message="No agent activity yet. Resume an agent and trigger a scenario from the simulation bar." />
             ) : (
               <div className="agent-feed">
                 {page.items.map((rec) => (
-                  <RecommendationRow key={rec.id} rec={rec} />
+                  <RecommendationRow
+                    key={rec.id}
+                    rec={rec}
+                    simNow={sim?.currentInstant}
+                    isNew={newIds.has(rec.id)}
+                  />
                 ))}
               </div>
             )
@@ -84,24 +150,25 @@ export default function AgentsPage() {
   );
 }
 
-function AgentCard({ agent }: { agent: AgentStatus }) {
+function AgentCard({ agent, simNow }: { agent: AgentStatus; simNow?: string }) {
   const pause = useAgentPause();
   return (
-    <div className="agent-card">
+    <div className={`agent-card agent-${agent.name}`}>
       <div className="agent-card-head">
         <div>
           <div className="agent-card-name">{agent.displayName}</div>
           <div className="agent-card-sub">
             {agent.reachable ? 'online' : 'unreachable'} ·{' '}
-            {agent.lastActivityAt ? `last activity ${dateTime(agent.lastActivityAt)}` : 'no activity yet'}
+            {agent.lastActivityAt ? `last activity ${relativeTime(agent.lastActivityAt, simNow)}` : 'no activity yet'}
           </div>
         </div>
         <Chip tone={agent.paused ? 'tone-muted' : 'tone-ok'}>{agent.paused ? 'Paused' : 'Active'}</Chip>
       </div>
+      <p className="agent-mission">{AGENT_MISSIONS[agent.name] ?? ''}</p>
       <div className="agent-card-stats">
-        <span>{agent.totalRecommendations} recommendations</span>
-        <span>{agent.pendingCount} pending</span>
-        <span>{agent.appliedCount + agent.autoAppliedCount} applied</span>
+        <span>{agent.totalRecommendations} runs</span>
+        <span>{agent.pendingCount} awaiting approval</span>
+        <span>{agent.appliedCount + agent.autoAppliedCount} actions applied</span>
       </div>
       <button
         type="button"
@@ -115,7 +182,15 @@ function AgentCard({ agent }: { agent: AgentStatus }) {
   );
 }
 
-function RecommendationRow({ rec }: { rec: AgentRecommendation }) {
+function RecommendationRow({
+  rec,
+  simNow,
+  isNew,
+}: {
+  rec: AgentRecommendation;
+  simNow?: string;
+  isNew: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const { actorId, ready } = useActingAs();
   const approve = useRecommendationDecision('approve');
@@ -123,14 +198,14 @@ function RecommendationRow({ rec }: { rec: AgentRecommendation }) {
   const busy = approve.isPending || dismiss.isPending || rec.status === 'APPLYING';
 
   return (
-    <div className="agent-rec">
+    <div className={`agent-rec agent-${rec.agentName} ${isNew ? 'is-new' : ''}`}>
       <button type="button" className="agent-rec-head" onClick={() => setOpen((v) => !v)}>
         <Chip tone={STATUS_TONES[rec.status] ?? 'tone-muted'}>
-          {rec.status === 'APPLYING' ? 'APPLYING…' : rec.status.replace('_', ' ')}
+          {STATUS_LABELS[rec.status] ?? rec.status}
         </Chip>
         <span className="agent-rec-agent">{rec.agentDisplayName}</span>
         <span className="agent-rec-summary">{rec.summary}</span>
-        <span className="agent-rec-when">{dateTime(rec.createdAt)}</span>
+        <span className="agent-rec-when">{relativeTime(rec.createdAt, simNow)}</span>
         <span className="agent-rec-caret">{open ? '▾' : '▸'}</span>
       </button>
 
@@ -142,13 +217,13 @@ function RecommendationRow({ rec }: { rec: AgentRecommendation }) {
             </span>
             {rec.referralId && (
               <span>
-                · <Link to={`/referrals/${rec.referralId}`}>Referral</Link>
+                · <Link to={`/referrals/${rec.referralId}`}>Open referral</Link>
               </span>
             )}
             {rec.decidedBy && (
               <span>
                 · decided by {rec.decidedBy.displayName}
-                {rec.decidedAt ? ` (${dateTime(rec.decidedAt)})` : ''}
+                {rec.decidedAt ? ` (${relativeTime(rec.decidedAt, simNow)})` : ''}
               </span>
             )}
           </div>
@@ -187,28 +262,73 @@ function RecommendationRow({ rec }: { rec: AgentRecommendation }) {
   );
 }
 
+/** Friendly narration for a trace step, keyed by step kind and tool name. */
+function describeStep(step: TraceStep): { icon: string; label: string; friendly?: string } {
+  if (step.tool) {
+    switch (step.tool) {
+      case 'executeQuery':
+        return { icon: '🔍', label: 'Investigated', friendly: 'Queried the HealthRx database (read-only SQL via the MCP gateway)' };
+      case 'get_medication_guidance':
+        return { icon: '📚', label: 'Consulted', friendly: 'Looked up drug guidance in the knowledge base' };
+      case 'get_condition_guidance':
+        return { icon: '📚', label: 'Consulted', friendly: 'Looked up condition guidance in the knowledge base' };
+      case 'clearpath_portal.prior_auth_decision':
+        return { icon: '🏢', label: 'External call', friendly: 'Contacted ClearPath Benefits — the payer’s portal, outside HealthRx' };
+      default:
+        return { icon: '🔧', label: 'Tool call', friendly: `Called ${step.tool} via the MCP gateway` };
+    }
+  }
+  switch (step.step) {
+    case 'trigger':
+      return { icon: '⚡', label: 'Trigger' };
+    case 'reasoning':
+      return { icon: '🧠', label: 'Reasoned' };
+    case 'proposal':
+      return { icon: '📝', label: 'Drafted plan' };
+    case 'action':
+      return { icon: '✅', label: 'Action' };
+    default:
+      return { icon: '·', label: step.step };
+  }
+}
+
 function Trace({ trace }: { trace: TraceStep[] }) {
   if (!trace || trace.length === 0) {
     return null;
   }
   return (
     <div className="agent-trace">
-      <div className="agent-trace-title">Thought process</div>
-      {trace.map((step, i) => (
-        <div key={i} className="agent-trace-step">
-          <span className={`agent-trace-kind agent-trace-${step.step}`}>{step.step}</span>
-          {step.tool ? (
-            <span className="agent-trace-detail">
-              <code>{step.tool}</code> {step.input}
-              {step.result ? <span className="agent-trace-result"> → {step.result}</span> : null}
+      <div className="agent-trace-title">What the agent did, step by step</div>
+      {trace.map((step, i) => {
+        const d = describeStep(step);
+        return (
+          <div key={i} className="agent-trace-step">
+            <span className="agent-trace-icon" aria-hidden>
+              {d.icon}
             </span>
-          ) : (
-            <span className="agent-trace-detail">{step.detail}</span>
-          )}
-        </div>
-      ))}
+            <span className={`agent-trace-kind agent-trace-${step.step}`}>{d.label}</span>
+            {step.tool ? (
+              <span className="agent-trace-detail">
+                {d.friendly}
+                {step.result ? <span className="agent-trace-result"> → {shorten(step.result)}</span> : null}
+                <details className="agent-trace-raw">
+                  <summary>raw call</summary>
+                  <code>{step.tool}</code> {step.input}
+                  {step.result ? <div className="agent-trace-result">→ {step.result}</div> : null}
+                </details>
+              </span>
+            ) : (
+              <span className="agent-trace-detail">{step.detail}</span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
+}
+
+function shorten(value: string, max = 160): string {
+  return value.length <= max ? value : value.slice(0, max) + '…';
 }
 
 function Proposal({ recommendation }: { recommendation: Record<string, unknown> }) {
@@ -216,16 +336,39 @@ function Proposal({ recommendation }: { recommendation: Record<string, unknown> 
   const intervention = recommendation?.intervention as { type?: string; rationale?: string } | undefined;
   const refill = recommendation?.refillPlan as { daysSupply?: number; note?: string } | undefined;
   const risk = recommendation?.riskExplanation as string | undefined;
-  // Access Workflow Agent shape (autonomous task routing).
+  // Access Workflow Agent shapes (autonomous task routing + payer decisions).
   const nextAction = recommendation?.nextAction as string | undefined;
   const task = recommendation?.task as { taskId?: string; title?: string; priority?: string } | undefined;
-  if (!outreach && !intervention && !refill && !risk && !nextAction && !task) {
+  const payerDecision = recommendation?.payerDecision as
+    | {
+        portal?: string;
+        payer?: string;
+        decision?: string;
+        authorizationNumber?: string;
+        denialReason?: string;
+        reviewer?: string;
+        turnaroundSeconds?: number;
+      }
+    | undefined;
+  if (!outreach && !intervention && !refill && !risk && !nextAction && !task && !payerDecision) {
     return null;
   }
   return (
     <div className="agent-proposal">
-      <div className="agent-trace-title">Proposed plan</div>
+      <div className="agent-trace-title">Outcome</div>
       {risk && <p className="agent-proposal-risk">{risk}</p>}
+      {payerDecision?.decision && (
+        <div className="agent-proposal-item agent-payer-decision">
+          <strong>Payer decision ({payerDecision.portal ?? 'payer portal'}):</strong>{' '}
+          <Chip tone={payerDecision.decision === 'APPROVED' ? 'tone-ok' : 'tone-danger'}>
+            {payerDecision.decision}
+          </Chip>{' '}
+          {payerDecision.authorizationNumber && <>auth {payerDecision.authorizationNumber} · </>}
+          {payerDecision.denialReason && <>{payerDecision.denialReason} · </>}
+          {payerDecision.reviewer && <>reviewed by {payerDecision.reviewer}</>}
+          {payerDecision.turnaroundSeconds != null && <> · {payerDecision.turnaroundSeconds}s turnaround</>}
+        </div>
+      )}
       {nextAction && (
         <div className="agent-proposal-item">
           <strong>Next action:</strong> {nextAction}

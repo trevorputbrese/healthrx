@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLookups, useReferralQueue, type QueueParams } from '../api/hooks';
 import { days, money } from '../format';
@@ -14,6 +14,31 @@ export default function QueuePage() {
   const query = useReferralQueue(filters);
 
   const set = (patch: Partial<QueueParams>) => setFilters((f) => ({ ...f, page: 0, ...patch }));
+
+  // Flash rows whose status changed (or that newly appeared) between polls, so movement in the
+  // world — a scenario click, the ambient stream, or an agent advancing a referral — is visible.
+  // Tracking resets whenever the query key changes (filters/page), so a re-filtered result set
+  // never reads as fresh movement.
+  const prevStatuses = useRef<Map<string, string> | null>(null);
+  const [changedIds, setChangedIds] = useState<Set<string>>(new Set());
+  const items = query.data?.items;
+  useEffect(() => {
+    if (!items) {
+      prevStatuses.current = null;
+      setChangedIds((cur) => (cur.size ? new Set<string>() : cur));
+      return;
+    }
+    const next = new Map(items.map((r) => [r.id, r.currentStatus as string]));
+    const prev = prevStatuses.current;
+    prevStatuses.current = next;
+    if (prev === null) return;
+    const changed = items.filter((r) => prev.get(r.id) !== r.currentStatus).map((r) => r.id);
+    if (changed.length > 0) {
+      setChangedIds(new Set(changed));
+      const timer = setTimeout(() => setChangedIds(new Set()), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [items]);
 
   return (
     <div className="page">
@@ -103,7 +128,11 @@ export default function QueuePage() {
                 </thead>
                 <tbody>
                   {data.items.map((r) => (
-                    <tr key={r.id} className="row-click" onClick={() => navigate(`/referrals/${r.id}`)}>
+                    <tr
+                      key={r.id}
+                      className={`row-click ${changedIds.has(r.id) ? 'row-changed' : ''}`}
+                      onClick={() => navigate(`/referrals/${r.id}`)}
+                    >
                       <td className="mono">{r.referralNumber}</td>
                       <td>
                         <div className="cell-strong">{r.patient.displayName}</div>
