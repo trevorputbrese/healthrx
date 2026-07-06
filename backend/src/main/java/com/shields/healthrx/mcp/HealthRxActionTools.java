@@ -22,7 +22,8 @@ public class HealthRxActionTools {
 
     private static final Map<AgentName, Set<String>> ALLOWED = Map.of(
             AgentName.ADHERENCE_RISK, Set.of("log_outreach", "create_intervention", "record_prescription_fill"),
-            AgentName.ACCESS_WORKFLOW, Set.of("create_task", "record_prior_auth_decision"));
+            AgentName.ACCESS_WORKFLOW, Set.of("create_task", "record_prior_auth_decision"),
+            AgentName.FINANCIAL_ASSISTANCE, Set.of("record_financial_assistance_decision"));
 
     private final AgentActionService actions;
 
@@ -106,6 +107,25 @@ public class HealthRxActionTools {
         AgentName agent = authorize("record_prior_auth_decision");
         return actions.recordPriorAuthDecision(agent, parse(recommendationId, "recommendationId"),
                 parse(referralId, "referralId"), decision, authorizationNumber, note);
+    }
+
+    @Tool(name = "record_financial_assistance_decision", description = """
+            Record a financial-assistance decision for a referral in PRIOR_AUTH_APPROVED.
+            NOT_REQUIRED skips assistance and advances straight to READY_TO_FILL. APPROVED/DENIED
+            reflect an actual foundation decision: both still advance to READY_TO_FILL (assistance
+            is supplementary, never a fulfillment blocker), passing through
+            FINANCIAL_ASSISTANCE_REVIEW; an approval also records the secured amount. If the
+            referral already moved on, returns applied=false with the current status. Returns JSON.""")
+    public String recordFinancialAssistanceDecision(
+            @ToolParam(description = "The recommendation id this action belongs to") String recommendationId,
+            @ToolParam(description = "Referral UUID") String referralId,
+            @ToolParam(description = "Decision: NOT_REQUIRED, APPROVED, or DENIED") String decision,
+            @ToolParam(description = "Dollar amount secured (for approvals)", required = false) Double securedAmount,
+            @ToolParam(description = "Status-history note, e.g. program name and turnaround", required = false) String note) {
+        AgentName agent = authorize("record_financial_assistance_decision");
+        return actions.recordFinancialAssistanceDecision(agent, parse(recommendationId, "recommendationId"),
+                parse(referralId, "referralId"), decision,
+                securedAmount != null ? java.math.BigDecimal.valueOf(securedAmount) : null, note);
     }
 
     /** Call-time authorization: a valid agent identity whose allow-list contains the tool. */

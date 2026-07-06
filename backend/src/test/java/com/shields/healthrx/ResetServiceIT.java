@@ -50,8 +50,8 @@ class ResetServiceIT {
     void resetWipesMutationsAndRestoresSeedAndClock() {
         // Dirty the world: drop some data, advance/enable the clock, add an idempotency row.
         jdbc.update("delete from fills");
-        jdbc.update("update simulation_state set enabled = true, current_instant = ? where id = 1",
-                java.sql.Timestamp.from(Instant.parse("2026-09-01T00:00:00Z")));
+        jdbc.update("update simulation_state set enabled = true, ambient_enabled = false, current_instant = ? "
+                + "where id = 1", java.sql.Timestamp.from(Instant.parse("2026-09-01T00:00:00Z")));
         jdbc.update("insert into processed_events (event_id, event_type, source, status, processed_at) "
                 + "values (?, 'Test', 'test', 'APPLIED', now())", UUID.randomUUID());
         // Dirty the Phase 3 agent state too: a recommendation + ledger row, and an un-paused agent.
@@ -65,27 +65,28 @@ class ResetServiceIT {
 
         reset.resetDemo();
 
-        // Seed counts restored.
-        assertThat(count("referrals")).isEqualTo(108);
+        // Seed counts restored (V13 trims referrals to 14; patients/therapies follow accordingly).
+        assertThat(count("referrals")).isEqualTo(14);
         assertThat(count("patients")).isEqualTo(80);
-        assertThat(count("therapies")).isEqualTo(42);
+        assertThat(count("therapies")).isEqualTo(4);
         assertThat(count("fills")).isGreaterThan(0);
         assertThat(count("processed_events")).isZero();
-        // 8 seeded care team members + System, Care Agent, and the two Phase 3 agent actors.
-        assertThat(count("care_team_members")).isEqualTo(12);
+        // 8 seeded care team members + System, Care Agent, and the three Phase 3 agent actors.
+        assertThat(count("care_team_members")).isEqualTo(13);
         assertThat(jdbc.queryForObject("select count(*) from care_team_members where id = ?",
                 Integer.class, SystemActors.SYSTEM)).isEqualTo(1);
         assertThat(jdbc.queryForObject("select count(*) from care_team_members where role = 'AI Agent'",
-                Integer.class)).isEqualTo(3);
+                Integer.class)).isEqualTo(4);
 
-        // Phase 3 agent state: recommendations/ledger truncated, both agents paused (V4 + reset).
+        // Phase 3 agent state: recommendations/ledger truncated, all three agents paused (V4/V14 + reset).
         assertThat(count("agent_recommendations")).isZero();
         assertThat(count("agent_tool_calls")).isZero();
         assertThat(jdbc.queryForObject(
-                "select count(*) from agent_control where paused = true", Integer.class)).isEqualTo(2);
+                "select count(*) from agent_control where paused = true", Integer.class)).isEqualTo(3);
 
-        // Clock reset + paused.
+        // Clock reset + paused; ambient events restored to on even if a presenter had left it off.
         assertThat(jdbc.queryForObject("select enabled from simulation_state where id = 1", Boolean.class)).isFalse();
+        assertThat(jdbc.queryForObject("select ambient_enabled from simulation_state where id = 1", Boolean.class)).isTrue();
         assertThat(jdbc.queryForObject("select current_instant from simulation_state where id = 1", OffsetDateTime.class)
                 .toInstant()).isEqualTo(Instant.parse("2026-06-29T00:00:00Z"));
 

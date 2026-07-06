@@ -201,7 +201,7 @@ class EventApplicationIT {
 
     @Test
     void refillMissedRollsCurrentRefillDueDateToThePast() {
-        UUID therapyId = one("select id from therapies where status = 'ACTIVE' order by id limit 1 offset 5");
+        UUID therapyId = one("select id from therapies where status = 'ACTIVE' order by id limit 1");
         UUID patientId = jdbc.queryForObject("select patient_id from therapies where id = ?", UUID.class, therapyId);
         app.apply(env(WorkflowEventType.REFILL_MISSED, Map.of(
                 "fillId", UUID.randomUUID().toString(),

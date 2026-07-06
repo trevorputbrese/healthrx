@@ -58,8 +58,8 @@ flowchart LR
 
 ## Full System Architecture (As Built)
 
-Phases 1-3 are all implemented and deployed. This is the complete picture — seven Cloud Foundry
-apps and five marketplace service instances — in one diagram, superseding the incremental
+Phases 1-3 are all implemented and deployed. This is the complete picture — nine Cloud Foundry
+apps and six marketplace service instances — in one diagram, superseding the incremental
 per-phase sketches above (kept for their historical narrative).
 
 ```mermaid
@@ -71,10 +71,12 @@ flowchart TB
         Gen["Generator"]
         Adh["Adherence Risk Agent<br/>recommend-only"]
         Acc["Access Workflow Agent<br/>autonomous"]
+        FA["Financial Assistance Agent<br/>autonomous"]
     end
 
-    subgraph External["External partner (stand-in app)"]
+    subgraph External["External partners (stand-in apps)"]
         Payer["ClearPath Benefits<br/>payer prior-auth portal"]
+        Fund["BridgeFund Patient Assistance<br/>copay grant portal"]
     end
 
     subgraph Data["Messaging & data (marketplace)"]
@@ -85,6 +87,7 @@ flowchart TB
     subgraph AI["Reasoning (marketplace, one instance per agent)"]
         LLM1["ai-models<br/>adherence instance"]
         LLM2["ai-models<br/>access instance"]
+        LLM3["ai-models<br/>financial-assistance instance"]
     end
 
     subgraph GWSub["MCP gateway (marketplace) + backing servers"]
@@ -102,15 +105,19 @@ flowchart TB
     Gen -->|publishes| MQ
     MQ -->|consumes| API
     MQ <-->|"senses RefillMissed, emits recs"| Adh
-    MQ <-->|"senses ReferralCreated, emits recs"| Acc
+    MQ <-->|"senses ReferralCreated/PriorAuthSubmitted"| Acc
+    MQ <-->|"senses PriorAuthApproved"| FA
     API <--> PG
     Gen <--> PG
 
     Adh --> LLM1
     Acc --> LLM2
+    FA --> LLM3
     Adh -->|reads + acts| GW
     Acc -->|reads + acts| GW
+    FA -->|reads + acts| GW
     Acc -->|"prior-auth decisions<br/>(plain HTTPS — external API)"| Payer
+    FA -->|"assistance decisions<br/>(plain HTTPS — external API)"| Fund
 
     PGMCP -.->|read-only grant| PG
     HMCP -.->|domain services| PG
@@ -118,27 +125,35 @@ flowchart TB
     GW -.->|audit logs| Obs
     LLM1 -.->|token usage| Obs
     LLM2 -.->|token usage| Obs
+    LLM3 -.->|token usage| Obs
 ```
 
 Notes that don't fit neatly into the boxes above:
 
-- **The payer portal is deliberately outside the MCP/gateway world.** ClearPath Benefits is a
-  stand-in for a real external company (an insurance clearinghouse), so the Access Workflow
-  Agent calls its REST API over plain HTTPS — external partners don't sit behind your MCP
-  gateway. Everything the agent then does *inside* HealthRx with the payer's answer (recording
-  the decision, routing an appeal task) still goes through the audited gateway tools
-  (`record_prior_auth_decision`, `create_task`). The portal binds no HealthRx services.
-- **PA submissions reach the agent three ways**: the generator's ambient stream and the
-  `submit-prior-auth` scenario publish `PriorAuthorizationSubmitted` directly, and the API
-  re-broadcasts the same event when a *human* advances a referral into PA-submitted from the UI
-  (only for human actors — consumer-applied and agent-driven transitions don't re-publish, which
-  is what prevents duplicate agent runs).
+- **Both partner portals are deliberately outside the MCP/gateway world.** ClearPath Benefits
+  (payer) and BridgeFund Patient Assistance (copay foundation) are stand-ins for real external
+  companies, so their owning agents call each portal's REST API over plain HTTPS — external
+  partners don't sit behind your MCP gateway. Everything an agent then does *inside* HealthRx
+  with a partner's answer (recording the decision, routing an appeal task) still goes through
+  the audited gateway tools (`record_prior_auth_decision`, `record_financial_assistance_decision`,
+  `create_task`). Neither portal binds any HealthRx service.
+- **No coin flips stand in for an external party's decision, anywhere.** Prior-auth and
+  financial-assistance outcomes come exclusively from the two partner portals, reached through
+  the two agents that own them. The generator's ambient stream and scenario buttons never pick a
+  referral sitting in `PRIOR_AUTH_SUBMITTED` or `PRIOR_AUTH_APPROVED` — if the owning agent is
+  paused, that referral simply waits, the same as a real case nobody is following up on.
+- **PA submissions and approvals reach their agents two ways each**: the generator's ambient
+  stream / scenario buttons publish the event directly, and the API re-broadcasts the same event
+  type when a *human or agent* (not the event consumer replaying an already-published event)
+  causes the transition — which is how a human advancing a referral, or the Access Agent
+  recording ClearPath's approval, both reach the Financial Assistance Agent.
 
 - **One `ai-models` instance per agent, not shared** — so token usage/latency attribute per
   agent on the platform dashboards, not just per app.
 - **Binding an app to the MCP gateway *is* how it registers** — that's why exactly three apps
   (`healthrx`, `healthrx-knowledge-mcp`, `healthrx-postgres-mcp-server`) sit behind it, each
-  under its own `/<app-name>/mcp` path, and nothing else calls them directly.
+  under its own `/<app-name>/mcp` path, and nothing else calls them directly. The two partner
+  portals are never gateway-registered — they're reached by plain HTTPS, not MCP.
 - **Agents have no direct Postgres binding, by design** — every read and write goes through the
   gateway as an audited MCP tool call. The Postgres MCP server and HealthRx's embedded action
   server both ultimately touch the same database (via a read-only grant for the former, the

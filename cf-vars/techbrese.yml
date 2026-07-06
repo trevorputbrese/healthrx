@@ -21,9 +21,18 @@ access_agent_app_name: healthrx-access-agent
 access_agent_route: healthrx-access-agent.apps.techbrese.com
 access_llm_service_instance: healthrx-access-workflow-agent-llm
 
+# Phase 3c Financial Assistance Agent app.
+financial_assistance_agent_app_name: healthrx-financial-assistance-agent
+financial_assistance_agent_route: healthrx-financial-assistance-agent.apps.techbrese.com
+financial_assistance_llm_service_instance: healthrx-financial-assistance-agent-llm
+
 # ClearPath Benefits payer portal (stand-in external partner for the agent's payer beat).
 payer_portal_app_name: clearpath-payer-portal
 payer_portal_route: clearpath-payer-portal.apps.techbrese.com
+
+# BridgeFund Patient Assistance portal (stand-in external partner for the FA agent's beat).
+assistance_portal_app_name: bridgefund-assistance-portal
+assistance_portal_route: bridgefund-assistance-portal.apps.techbrese.com
 
 # Phase 3b knowledge MCP server (internal route only; path prefix = app name).
 knowledge_app_name: healthrx-knowledge-mcp
@@ -42,6 +51,7 @@ mcp_internal_route: healthrx-mcp.apps.internal
 # Demo-only credentials, deliberately kept with the rest of the demo config.
 mcp_key_adherence: e9e20f0e9a4c3f0d3e885805f9d3feb8
 mcp_key_access: 8f5e04d7c5d667f8fe442361b4c42a55
+mcp_key_financial_assistance: e7d8962c7e64962293a0ce6abb4d2f1d
 
 # Only used as a fallback if the ai-models binding's credentials don't carry model_name
 # (techbrese's gpt-5.4 binding does, so this value is unused there — kept for parity).

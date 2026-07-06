@@ -9,7 +9,9 @@ public enum AgentName {
     ADHERENCE_RISK("adherence-risk", "Adherence Risk Agent",
             UUID.fromString("00000000-0000-0000-0000-000000000003")),
     ACCESS_WORKFLOW("access-workflow", "Access Workflow Agent",
-            UUID.fromString("00000000-0000-0000-0000-000000000004"));
+            UUID.fromString("00000000-0000-0000-0000-000000000004")),
+    FINANCIAL_ASSISTANCE("financial-assistance", "Financial Assistance Agent",
+            UUID.fromString("00000000-0000-0000-0000-000000000005"));
 
     private final String wireName;
     private final String displayName;

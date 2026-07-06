@@ -52,7 +52,8 @@ public class AgentOpsService {
     public AgentOpsService(AgentRecommendationRepository recommendations, AgentControlRepository control,
             CareTeamRepository careTeam, AppTime time, ObjectMapper mapper,
             @Value("${healthrx.agents.adherence-risk.url}") String adherenceUrl,
-            @Value("${healthrx.agents.access-workflow.url}") String accessUrl) {
+            @Value("${healthrx.agents.access-workflow.url}") String accessUrl,
+            @Value("${healthrx.agents.financial-assistance.url}") String financialAssistanceUrl) {
         this.recommendations = recommendations;
         this.control = control;
         this.careTeam = careTeam;
@@ -64,6 +65,8 @@ public class AgentOpsService {
                 RestClient.builder().baseUrl(adherenceUrl).requestFactory(factory).build());
         agentClients.put(AgentName.ACCESS_WORKFLOW,
                 RestClient.builder().baseUrl(accessUrl).requestFactory(factory).build());
+        agentClients.put(AgentName.FINANCIAL_ASSISTANCE,
+                RestClient.builder().baseUrl(financialAssistanceUrl).requestFactory(factory).build());
     }
 
     public PageResponse<AgentDtos.Recommendation> feed(String status, String agent, int page, int size) {

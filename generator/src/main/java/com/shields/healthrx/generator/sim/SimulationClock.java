@@ -54,4 +54,13 @@ public class SimulationClock {
     public void setSpeed(int speedSecondsPerSecond) {
         repo.setSpeed(Math.max(1, speedSecondsPerSecond), Instant.now());
     }
+
+    /** Whether the ambient trickle (random referral/refill/engagement events) is emitting. */
+    public boolean ambientEnabled() {
+        return repo.read().ambientEnabled();
+    }
+
+    public void setAmbientEnabled(boolean ambientEnabled) {
+        repo.setAmbientEnabled(ambientEnabled, Instant.now());
+    }
 }

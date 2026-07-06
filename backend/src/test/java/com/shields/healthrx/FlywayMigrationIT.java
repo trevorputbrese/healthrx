@@ -20,8 +20,10 @@ import com.shields.healthrx.config.AppTime;
 
 /**
  * Boots the full application against a throwaway Postgres (Testcontainers), proving Flyway
- * applies V1 + V2 against a blank database, the deterministic seed loads, and the read/metric
- * stack works against real data. Skipped automatically when no container runtime is available.
+ * applies the full migration chain against a blank database, the deterministic seed loads (as
+ * trimmed by V13 — 14 curated referrals, one per disease/lifecycle-status combination plus the
+ * 4 scripted scenario referrals), and the read/metric stack works against real data. Skipped
+ * automatically when no container runtime is available.
  */
 @SpringBootTest(properties = {
         "healthrx.events.consumer.enabled=false",
@@ -55,9 +57,12 @@ class FlywayMigrationIT {
                 "select count(*) from flyway_schema_history where success = true", Integer.class);
         assertThat(migrations).isGreaterThanOrEqualTo(2);
 
-        assertThat(jdbc.queryForObject("select count(*) from referrals", Integer.class)).isEqualTo(108);
+        // V13 trims the seeded referral set to 14 (one per disease/status combination plus the
+        // 4 scripted scenario referrals); patients are untouched, and therapies/fills follow the
+        // ACTIVE_THERAPY referrals 1:1.
+        assertThat(jdbc.queryForObject("select count(*) from referrals", Integer.class)).isEqualTo(14);
         assertThat(jdbc.queryForObject("select count(*) from patients", Integer.class)).isEqualTo(80);
-        assertThat(jdbc.queryForObject("select count(*) from therapies", Integer.class)).isEqualTo(42);
+        assertThat(jdbc.queryForObject("select count(*) from therapies", Integer.class)).isEqualTo(4);
 
         // Demo scenario rows are present and recognizable.
         assertThat(jdbc.queryForObject(
@@ -73,6 +78,6 @@ class FlywayMigrationIT {
 
         var summary = dashboardService.summary(new DashboardFilter(
                 time.today().minusDays(30), time.today(), null, null, null, null, null));
-        assertThat(summary.tiles().activePatientsOnTherapy()).isEqualTo(42);
+        assertThat(summary.tiles().activePatientsOnTherapy()).isEqualTo(4);
     }
 }

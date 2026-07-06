@@ -48,9 +48,12 @@ public class AmbientGenerator {
     public void tick() {
         State state = clock.state();
         if (!state.enabled()) {
-            return; // paused
+            return; // paused: no time passes, no events
         }
         Instant simNow = clock.advanceTick();
+        if (!state.ambientEnabled()) {
+            return; // time passes, but only presenter scenario clicks generate events
+        }
         double roll = rnd.nextDouble();
         if (roll < 0.40) {
             advanceReferral(simNow);
@@ -64,16 +67,13 @@ public class AmbientGenerator {
     }
 
     private void advanceReferral(Instant simNow) {
-        world.pickAdvanceableReferral(simNow).ifPresent(ref -> {
-            String event = flow.nextEvent(ref.currentStatus(), rnd);
+        world.pickAdvanceableReferral().ifPresent(ref -> {
+            String event = flow.nextEvent(ref.currentStatus());
             if (event == null) {
                 return;
             }
             Map<String, Object> payload = new HashMap<>();
             payload.put("referralId", ref.id().toString());
-            if (EventTypes.FINANCIAL_ASSISTANCE_FOUND.equals(event)) {
-                payload.put("securedAmount", 1000 + rnd.nextInt(11000));
-            }
             publisher.publish(event, simNow, payload);
         });
     }

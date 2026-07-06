@@ -1,7 +1,7 @@
 # Deploying HealthRx to a New Tanzu Platform for CF Foundation
 
-Everything the demo needs, from an empty org/space to the verified demo beats. Total: **5
-marketplace service instances** and **7 apps**, all built and pushed from this one repo.
+Everything the demo needs, from an empty org/space to the verified demo beats. Total: **6
+marketplace service instances** and **9 apps**, all built and pushed from this one repo.
 
 | # | App | Binds | Route |
 | --- | --- | --- | --- |
@@ -9,11 +9,13 @@ marketplace service instances** and **7 apps**, all built and pushed from this o
 | 2 | `healthrx-generator` | postgres, rabbitmq | public |
 | 3 | `healthrx-adherence-agent` | rabbitmq, adherence LLM | public |
 | 4 | `healthrx-access-agent` | rabbitmq, access LLM | public |
-| 5 | `healthrx-knowledge-mcp` | **mcp-gw** (registers `/healthrx-knowledge-mcp/mcp`) | internal only |
-| 6 | `healthrx-postgres-mcp-server` (`mcp-servers/postgres/`, Maven) | postgres, **mcp-gw** (registers `/healthrx-postgres-mcp-server/mcp`) | internal only |
-| 7 | `clearpath-payer-portal` (ClearPath Benefits — stand-in **external partner**, `partners/payer-portal/`) | nothing (deliberately: it plays another company) | public |
+| 5 | `healthrx-financial-assistance-agent` | rabbitmq, financial-assistance LLM | public |
+| 6 | `healthrx-knowledge-mcp` | **mcp-gw** (registers `/healthrx-knowledge-mcp/mcp`) | internal only |
+| 7 | `healthrx-postgres-mcp-server` (`mcp-servers/postgres/`, Maven) | postgres, **mcp-gw** (registers `/healthrx-postgres-mcp-server/mcp`) | internal only |
+| 8 | `clearpath-payer-portal` (ClearPath Benefits — stand-in **external partner**, `partners/payer-portal/`) | nothing (deliberately: it plays another company) | public |
+| 9 | `bridgefund-assistance-portal` (BridgeFund Patient Assistance — stand-in **external partner**, `partners/bridgefund-portal/`) | nothing (deliberately: it plays another company) | public |
 
-Prerequisites: `cf` CLI v8+, JDK 17+ (backend/agents/knowledge server) — app 6 targets Java 21,
+Prerequisites: `cf` CLI v8+, JDK 17+ (backend/agents/knowledge server) — app 7 targets Java 21,
 so JDK 21 too if you don't want to rely solely on the buildpack's JRE — and a foundation with the
 **GenAI tile** (offerings `ai-models` + `mcp-gateway`), Postgres, and RabbitMQ in the marketplace,
 plus the shared `apps.internal` domain (standard).
@@ -28,7 +30,7 @@ cf marketplace          # find the postgres, rabbitmq, ai-models, and mcp-gatewa
 cf buildpacks           # find the Java buildpack name (java_buildpack_offline vs java_buildpack)
 ```
 
-Create all five instances (adjust plans to your marketplace):
+Create all six instances (adjust plans to your marketplace):
 
 ```bash
 cf create-service postgres    <postgres-plan>          healthrx-postgres
@@ -37,10 +39,11 @@ cf create-service p.rabbitmq  <rabbitmq-plan>          healthrx-rabbitmq
 # Pick a plan/model that supports TOOL CALLING (the agents are unusable without it).
 cf create-service ai-models   <tool-calling-model-plan> healthrx-adherence-risk-agent-llm
 cf create-service ai-models   <tool-calling-model-plan> healthrx-access-workflow-agent-llm
+cf create-service ai-models   <tool-calling-model-plan> healthrx-financial-assistance-agent-llm
 cf create-service mcp-gateway gateway                   healthrx-mcp-gw
 ```
 
-Wait for `create succeeded` on all five (`cf services`), then note the gateway's client-facing
+Wait for `create succeeded` on all six (`cf services`), then note the gateway's client-facing
 URL: `cf service healthrx-mcp-gw` → **dashboard url** (e.g. `https://healthrx-mcp-gw.apps.<domain>`).
 
 ## 2. Fill in the vars file
@@ -50,7 +53,7 @@ cp cf-vars/example.yml cf-vars/<foundation>.yml
 ```
 
 Edit it: replace `<your-apps-domain>` in the routes, set `buildpack`, set `mcp_gateway_url` to the
-dashboard URL from step 1, and generate the two agent secrets (`openssl rand -hex 16` each). Leave
+dashboard URL from step 1, and generate the three agent secrets (`openssl rand -hex 16` each). Leave
 the service-instance, app-name, and internal-route values as-is (they match the commands above).
 
 **Also resolve `genai_model_name` now — don't skip this.** Some foundations' `ai-models`
@@ -71,8 +74,8 @@ the advertised model id, and set `genai_model_name` to that exact string.
 ## 3. Build everything
 
 ```bash
-./gradlew clean build                              # apps 1-5 + 7 (backend, SPA, generator, 2 agents, knowledge server, payer portal)
-(cd mcp-servers/postgres && ./mvnw -q package -DskipTests)   # app 6 (Postgres MCP server, Maven)
+./gradlew clean build   # apps 1-6 + 8-9 (backend, SPA, generator, 3 agents, knowledge server, both partner portals)
+(cd mcp-servers/postgres && ./mvnw -q package -DskipTests)   # app 7 (Postgres MCP server, Maven)
 ```
 
 `mcp-servers/postgres` is a vendored fork of [luanvuhlu/mcp-server-postgres](https://github.com/luanvuhlu/mcp-server-postgres)
@@ -85,13 +88,14 @@ isn't part of the Gradle multi-project, so it needs this one extra command.
 cf push --vars-file cf-vars/<foundation>.yml
 ```
 
-One push does all seven apps: the manifest binds each to its services, and the `healthrx-mcp-gw`
+One push does all nine apps: the manifest binds each to its services, and the `healthrx-mcp-gw`
 bindings **are** the MCP-server registrations (binding an app to the gateway registers it under
 `/<app-name>/mcp` — that's why three apps carry internal routes: the gateway requires one on any
-app it registers). Flyway migrates and seeds the database on the API's first start; both agents
-come up **paused** (by design — resume them from the Agents view). The payer portal is reached by
-the access agent over plain HTTPS via `HEALTHRX_PAYER_PORTAL_URL` (set in the manifest from
-`payer_portal_route`) — an external partner API on purpose, not an MCP-gateway registration.
+app it registers). Flyway migrates and seeds the database on the API's first start; all three
+agents come up **paused** (by design — resume them from the Agents view). Both partner portals
+are reached by their owning agent over plain HTTPS — `HEALTHRX_PAYER_PORTAL_URL` (Access Agent →
+ClearPath) and `HEALTHRX_ASSISTANCE_PORTAL_URL` (Financial Assistance Agent → BridgeFund) — external
+partner APIs on purpose, not MCP-gateway registrations.
 
 ## 5. Verify
 
@@ -100,7 +104,7 @@ BASE=https://healthrx.apps.<domain>
 GW=<gateway-url>
 
 curl $BASE/actuator/health                     # {"status":"UP"}
-curl $BASE/api/agents                          # both agents: paused=true, reachable=true
+curl $BASE/api/agents                          # all three agents: paused=true, reachable=true
 
 # Gateway registrations (each should return the server's tool list):
 INIT='{"jsonrpc":"2.0","id":1,"method":"tools/list"}'

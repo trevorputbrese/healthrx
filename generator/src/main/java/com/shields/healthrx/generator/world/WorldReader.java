@@ -35,23 +35,21 @@ public class WorldReader {
     }
 
     /**
-     * A random in-flight referral (not active/cancelled) to advance one step. Referrals whose
-     * prior auth was submitted within the last 6 simulated days are excluded: the Access
-     * Workflow Agent owns fresh PA decisions (it contacts the payer portal within seconds), and
-     * the ambient stream adjudicating the same referral in parallel could visibly contradict
-     * the payer's on-screen decision. Older submissions remain fair game so the world still
-     * moves when the agent is paused.
+     * A random in-flight referral (not active/cancelled) to advance one step.
+     * {@code PRIOR_AUTH_SUBMITTED} and {@code PRIOR_AUTH_APPROVED} are unconditionally excluded:
+     * those decisions belong to an external party (the payer via the Access Workflow Agent, a
+     * patient-assistance foundation via the Financial Assistance Agent), never to a random pick
+     * here. If the owning agent is paused, the referral simply waits — same as a real case with
+     * nobody following up — rather than the ambient stream guessing an outcome for it.
      */
-    public Optional<ReferralRef> pickAdvanceableReferral(java.time.Instant simNow) {
+    public Optional<ReferralRef> pickAdvanceableReferral() {
         List<ReferralRef> rows = jdbc.query("""
                 select id, current_status, patient_id, therapy_id from referrals
-                where current_status not in ('ACTIVE_THERAPY', 'CANCELLED')
-                  and not (current_status = 'PRIOR_AUTH_SUBMITTED'
-                           and pa_submitted_at > ?::timestamptz - interval '6 days')
+                where current_status not in
+                    ('ACTIVE_THERAPY', 'CANCELLED', 'PRIOR_AUTH_SUBMITTED', 'PRIOR_AUTH_APPROVED')
                 order by random() limit 1""",
                 (rs, i) -> new ReferralRef(uuid(rs, "id"), rs.getString("current_status"),
-                        uuid(rs, "patient_id"), uuid(rs, "therapy_id")),
-                simNow.toString());
+                        uuid(rs, "patient_id"), uuid(rs, "therapy_id")));
         return rows.stream().findFirst();
     }
 

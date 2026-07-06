@@ -34,11 +34,14 @@ applications:
       # Phase 3: the API proxies agent approve/pause/status to the agent apps.
       HEALTHRX_ADHERENCE_AGENT_URL: "https://((adherence_agent_route))"
       HEALTHRX_ACCESS_AGENT_URL: "https://((access_agent_route))"
-      # Demo reset also clears the external payer portal's submission memory (best-effort).
+      HEALTHRX_FINANCIAL_ASSISTANCE_AGENT_URL: "https://((financial_assistance_agent_route))"
+      # Demo reset also clears the external partners' submission memory (best-effort).
       HEALTHRX_PAYER_PORTAL_URL: "https://((payer_portal_route))"
+      HEALTHRX_ASSISTANCE_PORTAL_URL: "https://((assistance_portal_route))"
       # Phase 3: per-agent shared secrets guarding the embedded MCP action tools until SSO.
       HEALTHRX_MCP_KEY_ADHERENCE: ((mcp_key_adherence))
       HEALTHRX_MCP_KEY_ACCESS: ((mcp_key_access))
+      HEALTHRX_MCP_KEY_FINANCIAL_ASSISTANCE: ((mcp_key_financial_assistance))
       # Modest JVM footprint for a 1G container.
       JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"
 
@@ -92,6 +95,32 @@ applications:
       GENAI_MODEL: ((genai_model_name))
       # External payer portal (ClearPath Benefits) the agent contacts for PA decisions.
       HEALTHRX_PAYER_PORTAL_URL: "https://((payer_portal_route))"
+
+  # Phase 3c Financial Assistance Agent — senses PriorAuthorizationApproved; when a case needs
+  # copay assistance it contacts the external BridgeFund portal and records the decision through
+  # the MCP gateway. No coin-flip logic: BridgeFund makes the actual decision.
+  - name: ((financial_assistance_agent_app_name))
+    path: agents/financial-assistance-agent/build/libs/healthrx-financial-assistance-agent.jar
+    memory: 1G
+    disk_quota: 1G
+    instances: 1
+    buildpacks:
+      - ((buildpack))
+    health-check-type: http
+    health-check-http-endpoint: /actuator/health/liveness
+    routes:
+      - route: ((financial_assistance_agent_route))
+    services:
+      - ((rabbitmq_service_instance))
+      - ((financial_assistance_llm_service_instance))
+    env:
+      JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 17.+ } }'
+      JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"
+      HEALTHRX_MCP_GATEWAY_URL: ((mcp_gateway_url))
+      HEALTHRX_MCP_KEY_FINANCIAL_ASSISTANCE: ((mcp_key_financial_assistance))
+      GENAI_MODEL: ((genai_model_name))
+      # External patient-assistance portal (BridgeFund) the agent contacts for copay decisions.
+      HEALTHRX_ASSISTANCE_PORTAL_URL: "https://((assistance_portal_route))"
 
   # Phase 3b knowledge MCP server — curated drug/disease guidance tools, registered behind the
   # gateway (internal route only; nothing but the gateway calls it).
@@ -148,6 +177,24 @@ applications:
     health-check-http-endpoint: /actuator/health/liveness
     routes:
       - route: ((payer_portal_route))
+    env:
+      JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 17.+ } }'
+      JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"
+
+  # BridgeFund Patient Assistance portal — a stand-in EXTERNAL partner (fictional copay/patient-
+  # assistance foundation) the Financial Assistance Agent calls over plain HTTPS for grant
+  # decisions. Deliberately unbound from every HealthRx service: it represents another company.
+  - name: ((assistance_portal_app_name))
+    path: partners/bridgefund-portal/build/libs/bridgefund-assistance-portal.jar
+    memory: 768M
+    disk_quota: 1G
+    instances: 1
+    buildpacks:
+      - ((buildpack))
+    health-check-type: http
+    health-check-http-endpoint: /actuator/health/liveness
+    routes:
+      - route: ((assistance_portal_route))
     env:
       JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 17.+ } }'
       JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"

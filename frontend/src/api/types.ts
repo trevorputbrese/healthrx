@@ -256,6 +256,7 @@ export interface SimStatus {
   enabled: boolean;
   currentInstant: string;
   speedSecondsPerSecond: number;
+  ambientEnabled: boolean;
   scenarios: string[];
 }
 

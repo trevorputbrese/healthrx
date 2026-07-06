@@ -242,6 +242,10 @@ export function useSimControl() {
       mutationFn: (value: number) => api.post(`/api/simulation/speed?value=${value}`, {}),
       onSuccess: refreshAll,
     }),
+    setAmbient: useMutation({
+      mutationFn: (enabled: boolean) => api.post(`/api/simulation/ambient?enabled=${enabled}`, {}),
+      onSuccess: refreshAll,
+    }),
     scenario: useMutation({
       mutationFn: (name: string) => api.post(`/api/simulation/scenario/${name}`, {}),
       onSuccess: refreshAll,

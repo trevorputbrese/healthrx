@@ -38,6 +38,7 @@ public class SimController {
         m.put("enabled", s.enabled());
         m.put("currentInstant", s.currentInstant().toString());
         m.put("speedSecondsPerSecond", s.speedSecondsPerSecond());
+        m.put("ambientEnabled", s.ambientEnabled());
         m.put("scenarios", SCENARIOS);
         return m;
     }
@@ -57,6 +58,13 @@ public class SimController {
     @PostMapping("/speed")
     public Map<String, Object> speed(@RequestParam int value) {
         clock.setSpeed(value);
+        return status();
+    }
+
+    /** Toggles the ambient trickle independently of Start/Pause — time can still advance quietly. */
+    @PostMapping("/ambient")
+    public Map<String, Object> ambient(@RequestParam boolean enabled) {
+        clock.setAmbientEnabled(enabled);
         return status();
     }
 

@@ -71,17 +71,23 @@ healthrx:
   # External payer portal (ClearPath Benefits); demo reset clears its submission memory.
   payer-portal:
     url: ${HEALTHRX_PAYER_PORTAL_URL:http://localhost:8084}
+  # External patient-assistance portal (BridgeFund); demo reset clears its submission memory.
+  assistance-portal:
+    url: ${HEALTHRX_ASSISTANCE_PORTAL_URL:http://localhost:8086}
   # Base URLs of the agent apps; the API proxies approve/pause/status to them (phase-3-design.md §8).
   agents:
     adherence-risk:
       url: ${HEALTHRX_ADHERENCE_AGENT_URL:http://localhost:8082}
     access-workflow:
       url: ${HEALTHRX_ACCESS_AGENT_URL:http://localhost:8083}
+    financial-assistance:
+      url: ${HEALTHRX_FINANCIAL_ASSISTANCE_AGENT_URL:http://localhost:8087}
   # Per-agent shared secrets guarding the embedded MCP action tools until SSO (phase-3-design.md §4).
   mcp:
     agent-keys:
       adherence-risk: ${HEALTHRX_MCP_KEY_ADHERENCE:local-dev-adherence-key}
       access-workflow: ${HEALTHRX_MCP_KEY_ACCESS:local-dev-access-key}
+      financial-assistance: ${HEALTHRX_MCP_KEY_FINANCIAL_ASSISTANCE:local-dev-financial-assistance-key}
 
 logging:
   level:

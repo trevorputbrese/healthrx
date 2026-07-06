@@ -1,6 +1,7 @@
 import { useResetDemo, useSimControl, useSimStatus } from '../api/hooks';
 
 const SPEEDS: { value: number; label: string }[] = [
+  { value: 900, label: '15 min/sec' },
   { value: 1800, label: '30 min/sec' },
   { value: 3600, label: '1 hr/sec' },
   { value: 21600, label: '6 hr/sec' },
@@ -19,7 +20,7 @@ const SCENARIO_LABELS: Record<string, string> = {
 /** Demo control bar for the synthetic data generator (proxied through the API). */
 export default function SimulationBar() {
   const { data, isError, isLoading } = useSimStatus();
-  const { start, stop, setSpeed, scenario } = useSimControl();
+  const { start, stop, setSpeed, setAmbient, scenario } = useSimControl();
   const resetDemo = useResetDemo();
 
   const onReset = () => {
@@ -70,6 +71,15 @@ export default function SimulationBar() {
           ))}
         </select>
       </label>
+
+      <button
+        className={`btn btn-sm ${data.ambientEnabled ? '' : 'sim-ambient-off'}`}
+        disabled={setAmbient.isPending}
+        title="Ambient events are the random background trickle (new referrals, refills, outreach). Turn them off to advance simulated time with only your own scenario clicks generating activity."
+        onClick={() => setAmbient.mutate(!data.ambientEnabled)}
+      >
+        Ambient events: {data.ambientEnabled ? 'On' : 'Off'}
+      </button>
 
       <span className="sim-divider" />
       <span className="sim-scenario-label">Scenarios:</span>

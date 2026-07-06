@@ -37,6 +37,10 @@ import com.shields.healthrx.web.dto.ReferralDtos;
 @Service
 public class ReferralService {
 
+    /** Statuses whose entry is re-broadcast onto the event bus for the agents watching them. */
+    private static final java.util.Set<ReferralStatus> RE_BROADCAST_ON_ENTER =
+            java.util.Set.of(ReferralStatus.PRIOR_AUTH_SUBMITTED, ReferralStatus.PRIOR_AUTH_APPROVED);
+
     private final ReferralRepository referrals;
     private final CareTeamRepository careTeam;
     private final TherapyRepository therapies;
@@ -156,12 +160,16 @@ public class ReferralService {
                 historyId, id, from.name(), to.name(), now, changedById, note, event.wireName()));
         events.emit(event, id, null, "from=" + from.name() + " to=" + to.name());
 
-        // A PA submitted by a person (not by the event consumer replaying a generator event, and
-        // not by an agent) is re-broadcast so the Access Workflow Agent can chase the payer. The
-        // eventId is pre-claimed in processed_events within THIS transaction so the API's own
-        // consumer skips the re-broadcast entirely (late consumption could otherwise regress a
-        // referral the agent already decided back to PRIOR_AUTH_SUBMITTED via the resubmit edge).
-        if (to == ReferralStatus.PRIOR_AUTH_SUBMITTED && !SystemActors.SYSTEM.equals(changedById)) {
+        // Two transitions are re-broadcast onto the event bus whenever a REAL actor (human or
+        // agent — anyone but the event consumer replaying an already-published event) causes
+        // them: PRIOR_AUTH_SUBMITTED, so the Access Workflow Agent can chase the payer, and
+        // PRIOR_AUTH_APPROVED, so the Financial Assistance Agent can chase copay assistance —
+        // including when the APPROVAL ITSELF came from the Access Agent recording ClearPath's
+        // decision, which is the common path in practice. The eventId is pre-claimed in
+        // processed_events within THIS transaction so the API's own consumer skips the
+        // re-broadcast entirely (late consumption could otherwise regress a referral an agent
+        // already decided, e.g. back to PRIOR_AUTH_SUBMITTED via the resubmit edge).
+        if (RE_BROADCAST_ON_ENTER.contains(to) && !SystemActors.SYSTEM.equals(changedById)) {
             UUID patientId = referrals.patientOf(id).orElse(null);
             Map<String, Object> payload = new java.util.LinkedHashMap<>();
             payload.put("referralId", id.toString());

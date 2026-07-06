@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -164,6 +165,55 @@ public class AgentActionService {
             out.put("newStatus", target.name());
             if (authorizationNumber != null && !authorizationNumber.isBlank()) {
                 out.put("authorizationNumber", authorizationNumber);
+            }
+            return out;
+        });
+    }
+
+    /**
+     * Records a financial-assistance decision obtained by the calling agent for a referral in
+     * PRIOR_AUTH_APPROVED. {@code NOT_REQUIRED} skips assistance entirely (the case doesn't need
+     * it) and advances straight to READY_TO_FILL. {@code APPROVED}/{@code DENIED} reflect an
+     * actual BridgeFund decision: both still advance to READY_TO_FILL (assistance is
+     * supplementary, never a fulfillment blocker), passing through FINANCIAL_ASSISTANCE_REVIEW
+     * so the case history shows the review happened; an approval also records the secured
+     * amount. If the referral has already moved past PRIOR_AUTH_APPROVED (a rare race), this is
+     * a benign no-op that reports the current status instead of failing the agent's run.
+     */
+    public String recordFinancialAssistanceDecision(AgentName agent, UUID recommendationId, UUID referralId,
+            String decision, java.math.BigDecimal securedAmount, String note) {
+        String normalized = decision == null ? "" : decision.toUpperCase();
+        if (!Set.of("NOT_REQUIRED", "APPROVED", "DENIED").contains(normalized)) {
+            throw ApiException.badRequest("INVALID_DECISION",
+                    "decision must be NOT_REQUIRED, APPROVED, or DENIED.", Map.of("decision", String.valueOf(decision)));
+        }
+        return once(recommendationId, "record_financial_assistance_decision", () -> {
+            ReferralRepository.State state = referrals.loadState(referralId)
+                    .orElseThrow(() -> ApiException.notFound("Referral", referralId));
+            Map<String, Object> out = new LinkedHashMap<>();
+            if (!ReferralStatus.PRIOR_AUTH_APPROVED.name().equals(state.currentStatus())) {
+                out.put("applied", false);
+                out.put("currentStatus", state.currentStatus());
+                out.put("reason", "Referral is no longer awaiting a financial assistance decision.");
+                return out;
+            }
+            if ("NOT_REQUIRED".equals(normalized)) {
+                referralService.transition(referralId, ReferralStatus.READY_TO_FILL.name(), agent.actorId(), note);
+            } else {
+                referralService.transition(referralId, ReferralStatus.FINANCIAL_ASSISTANCE_REVIEW.name(),
+                        agent.actorId(), note);
+                if (securedAmount != null && securedAmount.signum() > 0) {
+                    referrals.updateFinancialAmounts(referralId, null, securedAmount, null, time.now());
+                }
+                referralService.transition(referralId, ReferralStatus.READY_TO_FILL.name(), agent.actorId(),
+                        "APPROVED".equals(normalized)
+                                ? "Assistance secured; proceeding to fill."
+                                : "No assistance secured; proceeding to fill.");
+            }
+            out.put("applied", true);
+            out.put("newStatus", ReferralStatus.READY_TO_FILL.name());
+            if (securedAmount != null && securedAmount.signum() > 0) {
+                out.put("securedAmount", securedAmount);
             }
             return out;
         });

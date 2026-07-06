@@ -94,13 +94,13 @@ public class ScenarioService {
     }
 
     private int advanceReferral(Instant now) {
-        return world.pickAdvanceableReferral(now).map(ref -> {
+        // Never picks PRIOR_AUTH_SUBMITTED or PRIOR_AUTH_APPROVED (excluded by the picker): those
+        // decisions belong to ClearPath Benefits / BridgeFund via the two agents, not a button.
+        return world.pickAdvanceableReferral().map(ref -> {
             // Always push to the next clean step (benefits -> PA submitted etc.) for a predictable demo.
             String event = switch (ref.currentStatus()) {
                 case "ELIGIBILITY_IDENTIFIED" -> EventTypes.BENEFITS_INVESTIGATION_STARTED;
                 case "BENEFITS_INVESTIGATION" -> EventTypes.PRIOR_AUTHORIZATION_SUBMITTED;
-                case "PRIOR_AUTH_SUBMITTED" -> EventTypes.PRIOR_AUTHORIZATION_APPROVED;
-                case "PRIOR_AUTH_APPROVED" -> EventTypes.READY_TO_FILL;
                 case "PRIOR_AUTH_DENIED" -> EventTypes.PRIOR_AUTHORIZATION_SUBMITTED;
                 case "FINANCIAL_ASSISTANCE_REVIEW" -> EventTypes.READY_TO_FILL;
                 case "READY_TO_FILL" -> EventTypes.DELIVERY_SCHEDULED;

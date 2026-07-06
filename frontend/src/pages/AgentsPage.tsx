@@ -50,6 +50,10 @@ const AGENT_MISSIONS: Record<string, string> = {
   'access-workflow':
     'Watches new, stuck, and prior-auth-submitted referrals. Investigates each case, routes ' +
     'follow-up tasks to owners, and contacts the payer’s portal for PA decisions — fully autonomously.',
+  'financial-assistance':
+    'Watches referrals the moment their prior auth is approved. If the case needs copay help, ' +
+    'it contacts an external patient-assistance foundation for a real decision and records it — ' +
+    'no guessing, no coin flips, fully autonomously.',
 };
 
 export default function AgentsPage() {
@@ -281,6 +285,8 @@ function describeStep(step: TraceStep): { icon: string; label: string; friendly?
         return { icon: '📚', label: 'Consulted', protocol: 'MCP tool call', friendly: 'Looked up condition guidance in the knowledge base' };
       case 'clearpath_portal.prior_auth_decision':
         return { icon: '🏢', label: 'External call', protocol: 'REST API call', friendly: 'Contacted ClearPath Benefits — the payer’s portal, outside HealthRx' };
+      case 'bridgefund_portal.financial_assistance_decision':
+        return { icon: '🏢', label: 'External call', protocol: 'REST API call', friendly: 'Contacted BridgeFund Patient Assistance — an independent foundation, outside HealthRx' };
       case 'llm.chat_completion':
         return { icon: '🧠', label: 'Reasoned', protocol: 'LLM call', friendly: 'Model reasoned over the findings' };
       default:
@@ -361,7 +367,20 @@ function Proposal({ recommendation }: { recommendation: Record<string, unknown> 
         turnaroundSeconds?: number;
       }
     | undefined;
-  if (!outreach && !intervention && !refill && !risk && !nextAction && !task && !payerDecision) {
+  const financialAssistanceDecision = recommendation?.financialAssistanceDecision as
+    | {
+        program?: string;
+        decision?: string;
+        securedAmount?: number;
+        denialReason?: string;
+        reviewer?: string;
+        turnaroundSeconds?: number;
+      }
+    | undefined;
+  if (
+    !outreach && !intervention && !refill && !risk && !nextAction && !task &&
+    !payerDecision && !financialAssistanceDecision
+  ) {
     return null;
   }
   return (
@@ -378,6 +397,28 @@ function Proposal({ recommendation }: { recommendation: Record<string, unknown> 
           {payerDecision.denialReason && <>{payerDecision.denialReason} · </>}
           {payerDecision.reviewer && <>reviewed by {payerDecision.reviewer}</>}
           {payerDecision.turnaroundSeconds != null && <> · {payerDecision.turnaroundSeconds}s turnaround</>}
+        </div>
+      )}
+      {financialAssistanceDecision?.decision && (
+        <div className="agent-proposal-item agent-payer-decision">
+          <strong>Financial assistance ({financialAssistanceDecision.program ?? 'assistance program'}):</strong>{' '}
+          {financialAssistanceDecision.decision === 'NOT_REQUIRED' ? (
+            <Chip tone="tone-muted">NOT REQUIRED</Chip>
+          ) : (
+            <>
+              <Chip tone={financialAssistanceDecision.decision === 'APPROVED' ? 'tone-ok' : 'tone-danger'}>
+                {financialAssistanceDecision.decision}
+              </Chip>{' '}
+              {financialAssistanceDecision.securedAmount != null && (
+                <>${financialAssistanceDecision.securedAmount} secured · </>
+              )}
+              {financialAssistanceDecision.denialReason && <>{financialAssistanceDecision.denialReason} · </>}
+              {financialAssistanceDecision.reviewer && <>reviewed by {financialAssistanceDecision.reviewer}</>}
+              {financialAssistanceDecision.turnaroundSeconds != null && (
+                <> · {financialAssistanceDecision.turnaroundSeconds}s turnaround</>
+              )}
+            </>
+          )}
         </div>
       )}
       {nextAction && (

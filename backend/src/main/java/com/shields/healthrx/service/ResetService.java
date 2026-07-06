@@ -45,18 +45,25 @@ public class ResetService {
 
     private final JdbcTemplate jdbc;
     private final RestClient payerPortal;
+    private final RestClient assistancePortal;
 
     public ResetService(JdbcTemplate jdbc,
-            @Value("${healthrx.payer-portal.url:}") String payerPortalUrl) {
+            @Value("${healthrx.payer-portal.url:}") String payerPortalUrl,
+            @Value("${healthrx.assistance-portal.url:}") String assistancePortalUrl) {
         this.jdbc = jdbc;
-        if (payerPortalUrl == null || payerPortalUrl.isBlank()) {
-            this.payerPortal = null;
-        } else {
-            SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-            factory.setConnectTimeout(Duration.ofSeconds(3));
-            factory.setReadTimeout(Duration.ofSeconds(5));
-            this.payerPortal = RestClient.builder().baseUrl(payerPortalUrl).requestFactory(factory).build();
+        this.payerPortal = resetClientFor(payerPortalUrl);
+        this.assistancePortal = resetClientFor(assistancePortalUrl);
+    }
+
+    /** A partner portal's URL is optional (local dev has neither); null means "skip the reset call". */
+    private static RestClient resetClientFor(String url) {
+        if (url == null || url.isBlank()) {
+            return null;
         }
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(3));
+        factory.setReadTimeout(Duration.ofSeconds(5));
+        return RestClient.builder().baseUrl(url).requestFactory(factory).build();
     }
 
     @Transactional
@@ -64,24 +71,28 @@ public class ResetService {
         Instant anchor = Instant.parse(ClockConfig.DEMO_NOW);
         OffsetDateTime anchorTs = OffsetDateTime.ofInstant(anchor, ZoneOffset.UTC);
 
-        // 1. Pause the simulation and reset the shared clock to the anchor (the generator reads this).
+        // 1. Pause the simulation and reset the shared clock to the anchor (the generator reads
+        // this); also restore the ambient-events toggle to on, in case a presenter left it off.
         jdbc.update("""
                 update simulation_state
-                set enabled = false, current_instant = ?, speed_seconds_per_second = ?, updated_at = ?
+                set enabled = false, current_instant = ?, speed_seconds_per_second = ?,
+                    ambient_enabled = true, updated_at = ?
                 where id = 1""", anchorTs, DEFAULT_SPEED, anchorTs);
 
         // 2. Wipe all data (idempotency ledger included so the seed re-applies cleanly).
         jdbc.execute(TRUNCATE);
 
         // 3. Re-apply the deterministic seed (same script Flyway runs for V2), then collapse to
-        // the single signed-in user and rename them to the presenter (V8 + V9 — the V2 seed is
-        // multi-owner and Flyway checksums forbid editing it).
+        // the single signed-in user, rename them to the presenter, and trim the referral set
+        // down to a curated 14 (V8-V13 — the V2 seed itself stays untouched; Flyway checksums
+        // forbid editing an applied migration).
         jdbc.execute((Connection con) -> {
             ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V2__seed_data.sql"));
             ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V8__single_care_team_user.sql"));
             ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V9__rename_single_user_trevor.sql"));
             ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V10__unique_patient_names.sql"));
             ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V11__globally_unique_patient_names.sql"));
+            ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V13__trim_seeded_referrals.sql"));
             return null;
         });
 
@@ -112,16 +123,22 @@ public class ResetService {
 
         log.warn("DEMO RESET: data wiped and reseeded; simulation paused at {}; agents paused", anchor);
 
-        // 6. Best-effort: reset the external payer portal's submission memory so a re-run of the
-        // demo adjudicates identically (same referral numbers reseed, and the portal's
-        // deny-on-first-attempt rule would otherwise silently flip to approve).
-        if (payerPortal != null) {
-            try {
-                payerPortal.post().uri("/api/admin/reset").retrieve().toBodilessEntity();
-                log.info("Payer portal submission memory reset");
-            } catch (Exception e) {
-                log.warn("Payer portal reset failed (portal offline?) — reruns may adjudicate differently", e);
-            }
+        // 6. Best-effort: reset both external partners' submission memory so a re-run of the
+        // demo adjudicates identically (same referral numbers reseed, and each portal's
+        // deterministic-per-referral rule would otherwise silently give a different answer).
+        resetPartner(payerPortal, "Payer portal");
+        resetPartner(assistancePortal, "Assistance portal");
+    }
+
+    private void resetPartner(RestClient client, String label) {
+        if (client == null) {
+            return;
+        }
+        try {
+            client.post().uri("/api/admin/reset").retrieve().toBodilessEntity();
+            log.info("{} submission memory reset", label);
+        } catch (Exception e) {
+            log.warn("{} reset failed (offline?) — reruns may adjudicate differently", label, e);
         }
     }
 }

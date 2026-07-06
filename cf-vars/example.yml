@@ -22,9 +22,18 @@ access_agent_app_name: healthrx-access-agent
 access_agent_route: healthrx-access-agent.<your-apps-domain>
 access_llm_service_instance: healthrx-access-workflow-agent-llm
 
+# Phase 3c Financial Assistance Agent app.
+financial_assistance_agent_app_name: healthrx-financial-assistance-agent
+financial_assistance_agent_route: healthrx-financial-assistance-agent.<your-apps-domain>
+financial_assistance_llm_service_instance: healthrx-financial-assistance-agent-llm
+
 # ClearPath Benefits payer portal (stand-in external partner for the agent's payer beat).
 payer_portal_app_name: clearpath-payer-portal
 payer_portal_route: clearpath-payer-portal.<your-apps-domain>
+
+# BridgeFund Patient Assistance portal (stand-in external partner for the FA agent's beat).
+assistance_portal_app_name: bridgefund-assistance-portal
+assistance_portal_route: bridgefund-assistance-portal.<your-apps-domain>
 
 # Phase 3b knowledge MCP server (internal route only; the gateway path prefix = app name).
 knowledge_app_name: healthrx-knowledge-mcp
@@ -54,6 +63,7 @@ rabbitmq_service_instance: healthrx-rabbitmq
 # Generate fresh ones per foundation: openssl rand -hex 16
 mcp_key_adherence: <openssl rand -hex 16>
 mcp_key_access: <openssl rand -hex 16>
+mcp_key_financial_assistance: <openssl rand -hex 16>
 
 # The model identifier to send in chat completion requests. Only takes effect if the ai-models
 # binding's credentials don't carry model_name directly (varies by foundation/plan) — check via

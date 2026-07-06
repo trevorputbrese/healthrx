@@ -52,6 +52,11 @@ public class SimulationProxyController {
         return forward(HttpMethod.POST, "/sim/speed?value=" + value);
     }
 
+    @PostMapping("/ambient")
+    public ResponseEntity<String> ambient(@RequestParam boolean enabled) {
+        return forward(HttpMethod.POST, "/sim/ambient?enabled=" + enabled);
+    }
+
     @PostMapping("/scenario/{name}")
     public ResponseEntity<String> scenario(@PathVariable String name) {
         return forward(HttpMethod.POST, "/sim/scenario/" + name);

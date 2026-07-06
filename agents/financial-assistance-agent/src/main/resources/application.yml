@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: healthrx-financial-assistance-agent
+  # Local RabbitMQ (compose). On Cloud Foundry, java-cfenv maps the bound service to these.
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:healthrx}
+    password: ${SPRING_RABBITMQ_PASSWORD:healthrx}
+    listener:
+      simple:
+        acknowledge-mode: auto
+        default-requeue-rejected: false
+  # OpenAI wire format from the ai-models binding; GenAiCfEnvProcessor overrides on CF.
+  ai:
+    openai:
+      base-url: ${GENAI_BASE_URL:http://localhost:9090}
+      api-key: ${GENAI_API_KEY:local-dev-key}
+      chat:
+        options:
+          model: ${GENAI_MODEL:gpt-5.4}
+          temperature: 1.0
+
+server:
+  port: ${PORT:8087}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+healthrx:
+  events:
+    exchange: healthrx.events
+    routing-prefix: healthrx.event.
+    queue: healthrx.events.agent.financial-assistance
+    consumer:
+      enabled: ${HEALTHRX_EVENTS_CONSUMER_ENABLED:true}
+  agent:
+    name: financial-assistance
+    key: ${HEALTHRX_MCP_KEY_FINANCIAL_ASSISTANCE:local-dev-financial-assistance-key}
+    gateway-url: ${HEALTHRX_MCP_GATEWAY_URL:http://localhost:8080}
+    postgres-endpoint: ${HEALTHRX_MCP_POSTGRES_ENDPOINT:/healthrx-postgres-mcp-server/mcp}
+    healthrx-endpoint: ${HEALTHRX_MCP_HEALTHRX_ENDPOINT:/healthrx/mcp}
+    wait-processed-timeout-ms: 10000
+    # This path is deterministic (no LLM decision-making — only a narration call), so the cap is
+    # generous, matching the Access Agent's payer-check cap.
+    rate-per-minute: ${HEALTHRX_AGENT_RATE_PER_MINUTE:30}
+    assistance-portal-url: ${HEALTHRX_ASSISTANCE_PORTAL_URL:http://localhost:8086}
+
+logging:
+  level:
+    com.shields.healthrx.agent: INFO

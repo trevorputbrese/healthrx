@@ -951,6 +951,11 @@ textarea:focus {
   height: 18px;
   background: rgba(255, 255, 255, 0.15);
 }
+.simbar .btn-sm.sim-ambient-off {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffd47a;
+}
 .sim-scenario-label {
   color: #9fb3c8;
 }
