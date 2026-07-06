@@ -44,6 +44,28 @@
   padding: 1px 7px;
   vertical-align: 1px;
 }
+
+/* ---- Tasks page (reuses the expandable feed-row pattern) ---- */
+
+.task-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.task-row.is-done .agent-rec-summary {
+  color: var(--text-faint, #8a97a5);
+  text-decoration: line-through;
+  text-decoration-color: var(--border-strong, #cfd8e0);
+}
+.task-description {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-line; /* agent descriptions carry paragraph breaks */
+  background: var(--surface-2, #f4f7fa);
+  border-radius: var(--radius-sm, 6px);
+  padding: 10px 12px;
+}
 .acting-as-label {
   color: var(--text-faint);
 }
@@ -1222,6 +1244,11 @@ textarea:focus {
   flex: 0 0 20px;
   text-align: center;
   font-size: 13px;
+}
+
+.agent-trace-llm-meta {
+  color: var(--text-muted, #5b6b7b);
+  font-variant-numeric: tabular-nums;
 }
 
 .agent-trace-raw {

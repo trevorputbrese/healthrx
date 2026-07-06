@@ -38,6 +38,13 @@ const pending: AgentRecommendation = {
   trace: [
     { step: 'trigger', detail: 'RefillMissed for patient pt1' },
     { step: 'query', tool: 'executeQuery', input: 'select …', result: '[…]' },
+    {
+      step: 'reasoning',
+      tool: 'llm.chat_completion',
+      detail: 'model gpt-5.4 · 1893 tokens in / 214 out · 2.1s',
+      input: 'Trigger: RefillMissed…',
+      result: '{"riskExplanation": "…"}',
+    },
     { step: 'proposal', detail: 'plan drafted' },
   ],
   createdAt: '2026-06-29T00:00:00Z',
@@ -130,6 +137,9 @@ describe('AgentsPage', () => {
     // Tool calls are narrated in plain English, with the raw call collapsed behind a details element.
     expect(screen.getByText(/Queried the HealthRx database/)).toBeInTheDocument();
     expect(screen.getByText('executeQuery')).toBeInTheDocument();
+    // The LLM call is audited into the trace with model, token usage, and latency.
+    expect(screen.getByText('LLM call')).toBeInTheDocument();
+    expect(screen.getByText(/model gpt-5.4 · 1893 tokens in \/ 214 out/)).toBeInTheDocument();
     expect(screen.getByText('Approve & apply')).toBeInTheDocument();
     expect(screen.getByText(/Refill overdue and two unanswered calls/)).toBeInTheDocument();
   });

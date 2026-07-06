@@ -66,6 +66,25 @@ export interface TaskSummary {
   title: string;
   dueAt?: string;
 }
+
+export type TaskStatus = 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+
+/** Tasks-page row: a task with its patient/referral context and full description. */
+export interface TaskItem {
+  id: string;
+  type: string;
+  status: TaskStatus;
+  priority: Priority;
+  title: string;
+  description?: string;
+  dueAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  patient: NamedRef;
+  referralId?: string;
+  referralNumber?: string;
+  owner: NamedRef;
+}
 export interface NoteItem {
   id: string;
   author: NamedRef;

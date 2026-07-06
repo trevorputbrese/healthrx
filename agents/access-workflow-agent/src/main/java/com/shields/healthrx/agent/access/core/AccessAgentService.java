@@ -104,6 +104,11 @@ public class AccessAgentService {
             if (!waitStep.getAsBoolean()) {
                 log.warn("Trigger {} not visible in processed_events within timeout — proceeding", triggerId);
             }
+            if (!guards.referralExists(referralId)) {
+                log.info("Referral {} does not exist (duplicate-skip or not yet applied) — no triage",
+                        referralId);
+                return;
+            }
 
             TraceRecorder trace = new TraceRecorder();
             trace.step("trigger", reason + " (referral " + referralId + ")");

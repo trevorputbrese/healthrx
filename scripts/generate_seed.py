@@ -162,21 +162,31 @@ MEDICATION_NAMES = {
 }
 
 FIRST_NAMES = [
-    "Jordan", "Avery", "Riley", "Casey", "Morgan", "Quinn", "Harper", "Rowan",
-    "Sasha", "Devon", "Elliot", "Marlowe", "Priya", "Mateo", "Noor", "Hana",
-    "Ezra", "Lena", "Felix", "Tessa", "Omar", "Ines", "Cyrus", "Dahlia",
-    "Soren", "Talia", "Bishop", "Wren", "Cleo", "Idris", "Mira", "Pascal",
-    "Linnea", "Rafael", "Yuki", "Anaya", "Gideon", "Saoirse", "Niko", "Bex",
+    "Adaeze", "Bram", "Callum", "Delphine", "Emeric", "Farida", "Gustavo", "Henrietta",
+    "Ilya", "Jocelyn", "Kasper", "Leilani", "Matthias", "Nadia", "Oskar", "Penelope",
+    "Quentin", "Rosalind", "Stellan", "Tobias", "Ursula", "Viktor", "Wilhelmina", "Xiomara",
+    "Yosef", "Zelda", "Amara", "Benedict", "Cordelia", "Dmitri", "Esperanza", "Fintan",
+    "Giselle", "Horatio", "Ingrid", "Jasper", "Katarina", "Lorenzo", "Maeve", "Nikolai",
+    "Odette", "Percival", "Qiana", "Raphael", "Simone", "Thaddeus", "Uma", "Vance",
+    "Winifred", "Xavier", "Yolanda", "Zachariah", "Annika", "Bartholomew", "Celeste", "Desmond",
+    "Eleanora", "Franklin", "Gwendolyn", "Hamish", "Isadora", "Jerome", "Keiko", "Leopold",
+    "Marisol", "Nathaniel", "Ophelia", "Padraig", "Rhiannon", "Sanjay", "Tamsin", "Ulysses",
+    "Valentina", "Wendell", "Ximena", "Yannick", "Zora", "Ambrose", "Beatrix", "Caspian",
 ]
 
 LAST_NAMES = [
-    "Ellis", "Navarro", "Okafor", "Lindqvist", "Romano", "Cho", "Delacroix",
-    "Ferreira", "Haddad", "Whitlock", "Bauer", "Sandoval", "Kovac", "Mensah",
-    "Petrov", "Aziz", "Lindgren", "Castellano", "Ng", "Oyelaran", "Schreiber",
-    "Vasquez", "Forsythe", "Dimitriou", "Abara", "Yamamoto", "Brennan",
-    "Salgado", "Theriault", "Nwosu", "Calderon", "Rhodes", "Eskildsen",
-    "Marchetti", "Bjornson", "Quintero", "Hollis", "Adeyemi", "Larsson", "Vega",
+    "Abernathy", "Bencivenga", "Castellanos", "Dubois", "Eriksen", "Fontaine", "Grimaldi", "Hollingsworth",
+    "Ivanov", "Jankowski", "Kowalczyk", "Lindstrom", "Moreau", "Nakagawa", "Obasanjo", "Pemberton",
+    "Quintanilla", "Rasmussen", "Sorensen", "Takahashi", "Umarov", "Villanueva", "Wexler", "Xanthopoulos",
+    "Yamada", "Zielinski", "Ashworth", "Bertolini", "Cavanaugh", "Dominguez", "Ellsworth", "Fairbanks",
+    "Galloway", "Hathaway", "Ibarra", "Jorgensen", "Kimura", "Lachapelle", "Mbeki", "Nightingale",
+    "Okonkwo", "Pellegrini", "Quist", "Rutherford", "Steinberg", "Thackeray", "Uddin", "Vanterpool",
+    "Whitaker", "Xiang", "Yusupova", "Zamora", "Arbuckle", "Beaumont", "Cardoso", "Drummond",
+    "Eastwood", "Fitzwilliam", "Goodwin", "Harrington", "Iverson", "Jablonski", "Kingsley", "Lockhart",
+    "Marchand", "Norwood", "Ostrowski", "Prescott", "Quimby", "Radcliffe", "Sinclair", "Templeton",
+    "Underhill", "Vasilenko", "Winslow", "Yates", "Zhukova", "Alcott", "Bristow", "Fenwick",
 ]
+
 
 CLINIC_DEFS = [
     ("Northside Oncology", "Northeast", "Oncology"),
@@ -376,11 +386,11 @@ class SeedBuilder:
         for idx in range(len(scenario_patients), 80):
             disease = DISEASE_STATES[idx % len(DISEASE_STATES)]
             clinic = self.clinic_by_disease[disease]
-            first = FIRST_NAMES[idx % len(FIRST_NAMES)]
-            # Shift the surname pairing per 40-index wave: both name arrays are length 40, so
-            # without this the (first, last) combination repeats exactly every 40 patients and
-            # the queue fills with apparent duplicate people (V10 repairs the shipped V2 data).
-            last = LAST_NAMES[(idx * 7 + 3 + (idx // len(FIRST_NAMES)) * 11) % len(LAST_NAMES)]
+            # Both pools hold 80 names and the surname index is a bijection over 80
+            # (gcd(7, 80) = 1), so every first and last name is used at most once — no two
+            # patients share a name in any way (V10/V11 repair the shipped V2 data to match).
+            first = FIRST_NAMES[idx]
+            last = LAST_NAMES[(idx * 7 + 3) % len(LAST_NAMES)]
             dob_year = 1950 + (idx * 11) % 50
             dob_month = 1 + (idx * 5) % 12
             dob_day = 1 + (idx * 13) % 28

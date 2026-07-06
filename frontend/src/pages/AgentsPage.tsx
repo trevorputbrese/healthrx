@@ -281,6 +281,8 @@ function describeStep(step: TraceStep): { icon: string; label: string; friendly?
         return { icon: '📚', label: 'Consulted', protocol: 'MCP tool call', friendly: 'Looked up condition guidance in the knowledge base' };
       case 'clearpath_portal.prior_auth_decision':
         return { icon: '🏢', label: 'External call', protocol: 'REST API call', friendly: 'Contacted ClearPath Benefits — the payer’s portal, outside HealthRx' };
+      case 'llm.chat_completion':
+        return { icon: '🧠', label: 'Reasoned', protocol: 'LLM call', friendly: 'Model reasoned over the findings' };
       default:
         return { icon: '🔧', label: 'Tool call', protocol: 'MCP tool call', friendly: `Called ${step.tool} via the MCP gateway` };
     }
@@ -317,6 +319,7 @@ function Trace({ trace }: { trace: TraceStep[] }) {
             {step.tool ? (
               <span className="agent-trace-detail">
                 {d.friendly}
+                {step.detail && <span className="agent-trace-llm-meta"> · {step.detail}</span>}
                 {step.result ? <span className="agent-trace-result"> → {shorten(step.result)}</span> : null}
                 <details className="agent-trace-raw">
                   <summary>raw call</summary>

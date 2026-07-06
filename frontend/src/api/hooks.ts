@@ -12,6 +12,7 @@ import type {
   ReferralDetail,
   ReferralSummary,
   SimStatus,
+  TaskItem,
   TimelineResponse,
 } from './types';
 
@@ -184,6 +185,32 @@ export function useLogIntervention(patientId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['patient', patientId] });
       qc.invalidateQueries({ queryKey: ['timeline', patientId] });
+    },
+  });
+}
+
+// --- Tasks page ---
+
+export function useTasks(params: { status?: string; search?: string; page?: number; size?: number }) {
+  return useQuery({
+    queryKey: ['tasks', params],
+    queryFn: () => api.get<PageResponse<TaskItem>>(`/api/tasks${qs({ ...params })}`),
+    refetchInterval: LIVE,
+  });
+}
+
+export function useTaskStatusChange() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, toStatus }: { id: string; toStatus: string }) =>
+      api.patch<TaskItem>(`/api/tasks/${id}/status`, { toStatus }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      // Task counts surface on referral/patient pages and the queue.
+      qc.invalidateQueries({ queryKey: ['referrals'] });
+      qc.invalidateQueries({ queryKey: ['referral'] });
+      qc.invalidateQueries({ queryKey: ['patients'] });
+      qc.invalidateQueries({ queryKey: ['patient'] });
     },
   });
 }

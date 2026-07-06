@@ -81,6 +81,7 @@ public class ResetService {
             ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V8__single_care_team_user.sql"));
             ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V9__rename_single_user_trevor.sql"));
             ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V10__unique_patient_names.sql"));
+            ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V11__globally_unique_patient_names.sql"));
             return null;
         });
 

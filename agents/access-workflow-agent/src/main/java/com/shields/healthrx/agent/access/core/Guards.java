@@ -39,6 +39,16 @@ public class Guards {
         return n != null && Long.parseLong(n.toString()) > 0;
     }
 
+    /**
+     * True when the referral row exists. A ReferralCreated event can reference a referral the
+     * API consumer chose not to create (duplicate patient+medication skip), so triaging without
+     * this check burns an LLM run on a ghost and then fails create_task.
+     */
+    public boolean referralExists(UUID referralId) {
+        Object n = sql.scalar("select count(*) from referrals where id = '" + referralId + "'");
+        return n != null && Long.parseLong(n.toString()) > 0;
+    }
+
     /** True when the deterministic Created event for this run was already consumed. */
     public boolean createdEventProcessed(UUID recommendationId) {
         Object n = sql.scalar("select count(*) from processed_events where event_id = '"

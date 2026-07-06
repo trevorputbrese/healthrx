@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
@@ -15,6 +16,7 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.stereotype.Component;
 
+import com.shields.healthrx.agent.access.core.LlmAudit;
 import com.shields.healthrx.agent.access.core.TraceRecorder;
 import com.shields.healthrx.agent.access.core.TriageModels.Triage;
 
@@ -78,25 +80,30 @@ public class TriageEngine {
                 Investigate this referral and produce the triage JSON."""
                 .formatted(reason, referralId, patientId);
 
-        String content = chat.prompt()
-                .system(s -> s.text(SYSTEM).param("format", converter.getFormat()))
-                .user(user)
-                .toolCallbacks(tools)
-                .call()
-                .content();
-        trace.step("reasoning", "model produced its triage");
+        String content = callModel(user, converter, tools, trace, 1);
         try {
             return converter.convert(content);
         } catch (Exception e) {
             log.warn("Triage JSON parse failed; retrying once. content={}", content);
-            String retry = chat.prompt()
-                    .system(s -> s.text(SYSTEM).param("format", converter.getFormat()))
-                    .user(user + "\nYour previous answer was not valid JSON. Respond with ONLY the JSON object.")
-                    .toolCallbacks(tools)
-                    .call()
-                    .content();
+            String retry = callModel(
+                    user + "\nYour previous answer was not valid JSON. Respond with ONLY the JSON object.",
+                    converter, tools, trace, 2);
             return converter.convert(retry);
         }
+    }
+
+    /** One audited model call: the llm_call log line + trace step carry model/tokens/latency. */
+    private String callModel(String user, BeanOutputConverter<Triage> converter,
+            List<ToolCallback> tools, TraceRecorder trace, int attempt) {
+        long started = System.currentTimeMillis();
+        ChatResponse response = chat.prompt()
+                .system(s -> s.text(SYSTEM).param("format", converter.getFormat()))
+                .user(user)
+                .toolCallbacks(tools)
+                .call()
+                .chatResponse();
+        return LlmAudit.record("access-workflow", "referral-triage", attempt, response,
+                System.currentTimeMillis() - started, user, trace);
     }
 
     private List<ToolCallback> recordingTools(TraceRecorder trace) {

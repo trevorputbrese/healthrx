@@ -4,12 +4,37 @@ import ActingAsSelector from './ActingAsSelector';
 import AgentTicker from './AgentTicker';
 import SimulationBar from './SimulationBar';
 
-const NAV = [
-  { to: '/queue', label: 'Queue' },
-  { to: '/patients', label: 'Patients' },
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/lifecycle', label: 'Referral Lifecycle' },
-  { to: '/agents', label: 'Agents' },
+/**
+ * Nav grouped by what the user is doing: working (my queue + my tasks), looking things up
+ * (records), understanding the program (insight), and the AI teammates. Groups render with
+ * subtle dividers so everything stays one visible row — nothing hides behind menus on stage.
+ */
+const NAV_GROUPS: { label: string; links: { to: string; label: string; end?: boolean }[] }[] = [
+  {
+    label: 'Work',
+    links: [
+      { to: '/queue', label: 'Queue' },
+      { to: '/tasks', label: 'My Tasks' },
+    ],
+  },
+  {
+    label: 'Records',
+    links: [
+      { to: '/referrals', label: 'Referrals', end: true },
+      { to: '/patients', label: 'Patients' },
+    ],
+  },
+  {
+    label: 'Insight',
+    links: [
+      { to: '/dashboard', label: 'Dashboard' },
+      { to: '/lifecycle', label: 'Lifecycle' },
+    ],
+  },
+  {
+    label: 'AI',
+    links: [{ to: '/agents', label: 'Agents' }],
+  },
 ];
 
 export default function AppLayout({ children }: { children: ReactNode }) {
@@ -22,14 +47,24 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <span className="app-brand-sub">Specialty Pharmacy Care Operations</span>
         </div>
         <nav className="app-nav">
-          {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) => (isActive ? 'app-nav-link is-active' : 'app-nav-link')}
-            >
-              {item.label}
-            </NavLink>
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label} className="app-nav-group" aria-label={group.label}>
+              <span className="app-nav-group-label" aria-hidden>
+                {group.label}
+              </span>
+              <div className="app-nav-group-links">
+                {group.links.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) => (isActive ? 'app-nav-link is-active' : 'app-nav-link')}
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
         <div className="app-actor">

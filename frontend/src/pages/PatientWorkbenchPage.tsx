@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useLogIntervention, useLogOutreach, useLookups, usePatient, usePatientTimeline } from '../api/hooks';
-import { useActingAs } from '../state/ActingAsContext';
+import { usePatient, usePatientTimeline } from '../api/hooks';
 import { agentTask, dateOnly, dateTime, percent, titleCase } from '../format';
 import { Card, RiskBadge, StateBlock } from '../components/ui';
-import Modal from '../components/Modal';
-import { MutationFooter } from './ReferralDetailPage';
+import { InterventionModal, OutreachModal } from '../components/PatientActionModals';
 
 const TIMELINE_TYPES = ['REFERRAL', 'STATUS_CHANGE', 'FINANCIAL', 'FILL', 'TASK', 'OUTREACH', 'INTERVENTION', 'NOTE'];
 
@@ -148,85 +146,3 @@ export default function PatientWorkbenchPage() {
   );
 }
 
-function OutreachModal({ patientId, onClose }: { patientId: string; onClose: () => void }) {
-  const { actorId } = useActingAs();
-  const { data: lookups } = useLookups();
-  const [channel, setChannel] = useState('PHONE');
-  const [outcome, setOutcome] = useState('REACHED');
-  const [notes, setNotes] = useState('');
-  const mutation = useLogOutreach(patientId);
-  return (
-    <Modal title="Log outreach" onClose={onClose}>
-      <label className="field">
-        <span>Channel</span>
-        <select value={channel} onChange={(e) => setChannel(e.target.value)}>
-          {lookups?.outreachChannels.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="field">
-        <span>Outcome</span>
-        <select value={outcome} onChange={(e) => setOutcome(e.target.value)}>
-          {lookups?.outreachOutcomes.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="field">
-        <span>Notes (optional)</span>
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
-      </label>
-      <MutationFooter
-        mutation={mutation}
-        disabled={!actorId}
-        onSubmit={() =>
-          mutation.mutate(
-            { ownerId: actorId!, channel, outcome, notes: notes || undefined },
-            { onSuccess: onClose },
-          )
-        }
-      />
-    </Modal>
-  );
-}
-
-function InterventionModal({ patientId, onClose }: { patientId: string; onClose: () => void }) {
-  const { actorId } = useActingAs();
-  const { data: lookups } = useLookups();
-  const [interventionType, setInterventionType] = useState('ADHERENCE_COUNSELING');
-  const [summary, setSummary] = useState('');
-  const mutation = useLogIntervention(patientId);
-  return (
-    <Modal title="Log clinical intervention" onClose={onClose}>
-      <label className="field">
-        <span>Type</span>
-        <select value={interventionType} onChange={(e) => setInterventionType(e.target.value)}>
-          {lookups?.interventionTypes.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="field">
-        <span>Summary</span>
-        <textarea value={summary} onChange={(e) => setSummary(e.target.value)} rows={4} autoFocus />
-      </label>
-      <MutationFooter
-        mutation={mutation}
-        disabled={!actorId || summary.trim() === ''}
-        onSubmit={() =>
-          mutation.mutate(
-            { ownerId: actorId!, interventionType, summary: summary.trim() },
-            { onSuccess: onClose },
-          )
-        }
-      />
-    </Modal>
-  );
-}
