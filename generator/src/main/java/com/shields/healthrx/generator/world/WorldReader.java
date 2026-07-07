@@ -132,18 +132,22 @@ public class WorldReader {
         return rows.stream().findFirst();
     }
 
-    public Optional<TherapyRef> findActiveTherapyByMrn(String demoMrn) {
+    /**
+     * The most recently created active therapy. send-at-risk/resolve-risk target this so
+     * whichever referral a presenter just walked to Active therapy is reliably the one affected,
+     * rather than a random pick among however many therapies happen to be active at once.
+     */
+    public Optional<TherapyRef> pickMostRecentActiveTherapy() {
         List<TherapyRef> rows = jdbc.query("""
                 select t.id, t.patient_id, t.current_refill_due_date, p.primary_owner_id as owner_id,
                        coalesce((select f.days_supply from fills f where f.therapy_id = t.id
                                  and f.status = 'DISPENSED' order by f.fill_number desc limit 1), 30) as days_supply
                 from therapies t join patients p on p.id = t.patient_id
-                where p.demo_mrn = ? and t.status = 'ACTIVE'
+                where t.status = 'ACTIVE'
                 order by t.created_at desc limit 1""",
                 (rs, i) -> new TherapyRef(uuid(rs, "id"), uuid(rs, "patient_id"),
                         rs.getObject("current_refill_due_date", LocalDate.class),
-                        rs.getInt("days_supply"), uuid(rs, "owner_id")),
-                demoMrn);
+                        rs.getInt("days_supply"), uuid(rs, "owner_id")));
         return rows.stream().findFirst();
     }
 }

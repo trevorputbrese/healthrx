@@ -65,11 +65,12 @@ class ResetServiceIT {
 
         reset.resetDemo();
 
-        // Seed counts restored (V13 trims referrals to 14; patients/therapies follow accordingly).
-        assertThat(count("referrals")).isEqualTo(14);
+        // Patients/reference data restored, but the referral queue starts empty — the presenter
+        // builds it up live via the "New referral" scenario button.
+        assertThat(count("referrals")).isZero();
         assertThat(count("patients")).isEqualTo(80);
-        assertThat(count("therapies")).isEqualTo(4);
-        assertThat(count("fills")).isGreaterThan(0);
+        assertThat(count("therapies")).isZero();
+        assertThat(count("fills")).isZero();
         assertThat(count("processed_events")).isZero();
         // 8 seeded care team members + System, Care Agent, and the three Phase 3 agent actors.
         assertThat(count("care_team_members")).isEqualTo(13);
@@ -89,9 +90,5 @@ class ResetServiceIT {
         assertThat(jdbc.queryForObject("select ambient_enabled from simulation_state where id = 1", Boolean.class)).isTrue();
         assertThat(jdbc.queryForObject("select current_instant from simulation_state where id = 1", OffsetDateTime.class)
                 .toInstant()).isEqualTo(Instant.parse("2026-06-29T00:00:00Z"));
-
-        // A fixed demo scenario is back.
-        assertThat(jdbc.queryForObject("select count(*) from referrals where referral_number = 'RX-10003'",
-                Integer.class)).isEqualTo(1);
     }
 }

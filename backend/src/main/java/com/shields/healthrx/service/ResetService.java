@@ -83,18 +83,26 @@ public class ResetService {
         jdbc.execute(TRUNCATE);
 
         // 3. Re-apply the deterministic seed (same script Flyway runs for V2), then collapse to
-        // the single signed-in user, rename them to the presenter, and trim the referral set
-        // down to a curated 14 (V8-V13 — the V2 seed itself stays untouched; Flyway checksums
-        // forbid editing an applied migration).
+        // the single signed-in user and rename them to the presenter (V8-V11 — the V2 seed
+        // itself stays untouched; Flyway checksums forbid editing an applied migration).
         jdbc.execute((Connection con) -> {
             ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V2__seed_data.sql"));
             ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V8__single_care_team_user.sql"));
             ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V9__rename_single_user_trevor.sql"));
             ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V10__unique_patient_names.sql"));
             ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V11__globally_unique_patient_names.sql"));
-            ScriptUtils.executeSqlScript(con, new ClassPathResource("db/migration/V13__trim_seeded_referrals.sql"));
             return null;
         });
+
+        // 3b. The live demo now starts with an empty referral queue — the presenter builds up
+        // all referral-lifecycle material live via the "New referral" scenario button, instead
+        // of starting from a curated seed set (superseded V13 trim). Patients, clinics,
+        // medications, payers, and care team members from step 3 above are untouched; this only
+        // clears the referral lifecycle and everything hung off it. This is NOT a Flyway
+        // migration on purpose — the full seeded lifecycle (V13's curated 14) is still what a
+        // fresh deploy and the integration test suite exercise; only the live "Reset Demo" lever
+        // leaves the queue empty.
+        clearReferralLifecycle();
 
         // 4. Restore the non-human actors (seeded by V3/V4, not in the V2 seed script).
         jdbc.update("""
@@ -128,6 +136,23 @@ public class ResetService {
         // deterministic-per-referral rule would otherwise silently give a different answer).
         resetPartner(payerPortal, "Payer portal");
         resetPartner(assistancePortal, "Assistance portal");
+    }
+
+    /**
+     * Empties the referral queue: everything hung off a referral goes first (FK order — fills
+     * reference therapies, referrals reference therapies, so therapies must be deleted last),
+     * then the referrals themselves, then the now-orphaned therapies. Patients/clinics/
+     * medications/payers/care team members are untouched.
+     */
+    private void clearReferralLifecycle() {
+        jdbc.update("delete from fills");
+        jdbc.update("delete from referral_status_history");
+        jdbc.update("delete from referral_notes");
+        jdbc.update("delete from tasks where referral_id is not null");
+        jdbc.update("delete from outreach_events where referral_id is not null");
+        jdbc.update("delete from clinical_interventions where referral_id is not null");
+        jdbc.update("delete from referrals");
+        jdbc.update("delete from therapies");
     }
 
     private void resetPartner(RestClient client, String label) {

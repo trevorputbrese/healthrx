@@ -6,15 +6,15 @@ These four aren't switches with an on/off state — they're **one-shot triggers*
 
 ## What each one does
 
-**New referral** — picks a random existing patient (plus a medication matching their disease state) and creates a **brand-new referral** for them, seeded as urgent, PA-required, needing financial assistance. It lands in the Enrollment & Access Queue at the very first stage, `ELIGIBILITY_IDENTIFIED`. Good for showing the "queue grows" story or feeding the Access Workflow Agent's triage.
+**New referral** — picks a random existing patient (plus a medication matching their disease state) and creates a **brand-new referral** for them, seeded as urgent and PA-required. Whether it also needs financial assistance is a fact the referring provider reports at intake — simulated as a roughly 1-in-5 chance, so most new referrals *don't* need it and only some go on to trigger the BridgeFund beat below. It lands in the Enrollment & Access Queue at the very first stage, `ELIGIBILITY_IDENTIFIED`. Good for showing the "queue grows" story or feeding the Access Workflow Agent's triage.
 
 **Advance a referral** — picks a random referral that's currently *in flight* and pushes it one step forward along its access-milestone path (`ELIGIBILITY_IDENTIFIED` → `BENEFITS_INVESTIGATION` → `PRIOR_AUTH_SUBMITTED`, or `FINANCIAL_ASSISTANCE_REVIEW` → `READY_TO_FILL` → `DELIVERY_SCHEDULED` → `ACTIVE_THERAPY`). It's random *which* referral gets picked, so you may need to click it a few times or watch the queue to see which row moved. **It never picks a referral sitting in `PRIOR_AUTH_SUBMITTED` or `PRIOR_AUTH_APPROVED`** — those two moments are real external decisions (the payer, a patient-assistance foundation), so only the Access Workflow Agent and the Financial Assistance Agent ever move a referral out of them; there is no coin flip anywhere in HealthRx standing in for an outside company's decision.
 
-**Send at-risk** — this one's targeted, not random: it goes after **Marlowe Okafor** (`PX-2044`), the seeded MS patient, or falls back to a random therapy with a refill due soon if that patient isn't available. It fires three events: a missed refill (backdated 2 days, so the therapy goes overdue) plus two unsuccessful outreach attempts (a no-answer call, a left-message text). Per the refill-risk rules, that trips *both* HIGH-risk conditions at once — overdue refill and repeated failed outreach — which is why the patient's risk badge jumps straight to **HIGH**.
+**Send at-risk** — targets **whichever active therapy was created most recently** (see "Starting from an empty queue" below — since the queue starts empty, this is normally whatever referral you last walked to `Active therapy`). It fires three events: a missed refill (backdated 2 days, so the therapy goes overdue) plus two unsuccessful outreach attempts (a no-answer call, a left-message text). Per the refill-risk rules, that trips *both* HIGH-risk conditions at once — overdue refill and repeated failed outreach — which is why the patient's risk badge jumps straight to **HIGH**. If there's no active therapy yet at all, it does nothing (`emitted: 0`).
 
 **Resolve risk** — the payback for the above, on the same targeted patient: a dispensed fill (clears the overdue condition), a `REACHED` phone outreach, and an `ADHERENCE_COUNSELING` intervention (together clear the failed-outreach condition). With both conditions cleared, risk drops back to **LOW**. This is also literally what the Adherence Risk Agent does automatically when you approve its recommendation — same three actions, agent-driven instead of scripted.
 
-**Practical tip for demoing:** `send-at-risk` → `resolve-risk` back-to-back on Marlowe is the reliable, deterministic HIGH→LOW beat — that pairing is why they exist together. `new-referral` and `advance-referral` are looser, better for showing general queue movement than a specific before/after story.
+**Practical tip for demoing:** `send-at-risk` → `resolve-risk` back-to-back is the reliable, deterministic HIGH→LOW beat — that pairing is why they exist together. `new-referral` and `advance-referral` are looser, better for showing general queue movement than a specific before/after story.
 
 ---
 
@@ -50,6 +50,22 @@ Every run lands in the Agents feed as **Acted autonomously**, with its own trace
 
 **Why this exists:** every decision in the referral lifecycle that a real outside party would make — the payer's coverage decision, the foundation's grant decision — now has a visible, named external app behind it, and there is no random-chance logic anywhere in HealthRx standing in for one of those calls. If an agent is paused, the referral it would have handled simply waits, same as a real case with nobody following up — never a silent coin flip.
 
+---
+
+# Starting from an empty queue (added July 2026)
+
+**Reset demo** now leaves the referral queue completely empty — zero referrals, zero therapies. Patients, clinics, medications, payers, and care team members are still fully seeded (80 patients, ready for `new-referral` to pick from); only the referral lifecycle itself starts blank, so the presenter builds up every referral they use live, on stage, instead of narrating a pile of pre-existing rows.
+
+**To get a referral all the way to `Active therapy`** (a prerequisite for `send-at-risk`, since that button needs an active therapy to act on):
+
+1. `new-referral` — creates one at `Eligibility identified`.
+2. `submit-prior-auth` — chains it through `Benefits investigation` straight to `Prior auth submitted`. Within a few seconds the **Access Workflow Agent** (must be resumed) contacts ClearPath and records the decision.
+3. If **approved**, and the referral needs financial assistance (~1 in 5), the **Financial Assistance Agent** (must be resumed) contacts BridgeFund within a few seconds and advances it to `Ready to fill` either way.
+4. `advance-referral` (or the manual status dropdown on the referral detail page) — `Ready to fill` → `Delivery scheduled` → `Active therapy`. With only one or two referrals in flight, `advance-referral`'s random pick reliably lands on the right one; the manual dropdown is fully deterministic if you want to be sure.
+5. Now `send-at-risk` has something to act on.
+
+With an empty starting queue this whole walk is normally just one referral at a time, so `advance-referral`'s randomness isn't really in play — it only matters if you've deliberately got several referrals in flight at once.
+
 ## Other changes for the demo
 
 - **Patients** is now in the top nav — a directory (search, disease-state filter, refill-risk rollup) that opens each Patient Workbench. Referral pages link to the patient record and back.
@@ -57,4 +73,4 @@ Every run lands in the Agents feed as **Acted autonomously**, with its own trace
 - **Agents view**: mission blurbs on each agent card, plain-English statuses ("Awaiting approval" / "Acted autonomously"), narrated traces with the raw MCP calls collapsed behind "raw call", and new feed entries flash.
 - **Queue rows flash amber** when their status changes between polls — agent- and simulation-driven movement is visible without anyone clicking.
 
-**Suggested 90-second agent arc:** Reset demo → resume all three agents → `submit-prior-auth` → watch the ticker + queue flash as the referral advances (often twice in a row: PA approval, then straight into a financial-assistance decision), expand both feed entries, show the ClearPath and BridgeFund portal tabs → `send-at-risk` → approve the Adherence agent's plan → `resolve-risk` story closes with the risk badge dropping.
+**Suggested demo arc, from an empty queue:** Reset demo → resume all three agents → `new-referral` (queue grows from zero) → `submit-prior-auth` → watch the ticker + queue flash as the referral advances (often twice in a row: PA approval, then straight into a financial-assistance decision if this one needed it), expand both feed entries, show the ClearPath and BridgeFund portal tabs → `advance-referral` a couple of times (or the referral page's manual dropdown) to reach `Active therapy` → `send-at-risk` → approve the Adherence agent's plan → `resolve-risk` closes the story with the risk badge dropping.

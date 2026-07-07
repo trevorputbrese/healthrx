@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -24,12 +25,10 @@ import com.shields.healthrx.generator.world.WorldReader.TherapyRef;
 @Service
 public class ScenarioService {
 
-    /** The seeded MS patient (Marlowe Okafor) used for the at-risk / resolve demo pair. */
-    private static final String DEMO_MS_MRN = "PX-2044";
-
     private final SimulationClock clock;
     private final WorldReader world;
     private final EventPublisher publisher;
+    private final Random rnd = new Random();
 
     public ScenarioService(SimulationClock clock, WorldReader world, EventPublisher publisher) {
         this.clock = clock;
@@ -88,7 +87,10 @@ public class ScenarioService {
         p.put("ownerId", s.ownerId().toString());
         p.put("priority", "URGENT");
         p.put("paRequired", true);
-        p.put("financialAssistanceRequired", true);
+        // The referring provider tells us up front whether the case needs financial assistance —
+        // that's a fact arriving with the referral, not a HealthRx decision, so it's fine to
+        // simulate it with a distribution: about 1 in 5 referrals arrive flagged as needing it.
+        p.put("financialAssistanceRequired", rnd.nextDouble() < 0.2);
         publisher.publish(EventTypes.REFERRAL_CREATED, now, p);
         return 1;
     }
@@ -118,8 +120,7 @@ public class ScenarioService {
     }
 
     private int sendAtRisk(Instant now) {
-        Optional<TherapyRef> therapy = world.findActiveTherapyByMrn(DEMO_MS_MRN)
-                .or(() -> world.pickRefillableTherapy(LocalDate.ofInstant(now, ZoneOffset.UTC).plusYears(10)));
+        Optional<TherapyRef> therapy = world.pickMostRecentActiveTherapy();
         if (therapy.isEmpty()) {
             return 0;
         }
@@ -142,8 +143,7 @@ public class ScenarioService {
     }
 
     private int resolveRisk(Instant now) {
-        Optional<TherapyRef> therapy = world.findActiveTherapyByMrn(DEMO_MS_MRN)
-                .or(() -> world.pickRefillableTherapy(LocalDate.ofInstant(now, ZoneOffset.UTC).plusYears(10)));
+        Optional<TherapyRef> therapy = world.pickMostRecentActiveTherapy();
         if (therapy.isEmpty()) {
             return 0;
         }

@@ -114,10 +114,13 @@ for s in healthrx healthrx-knowledge-mcp healthrx-postgres-mcp-server; do
 done
 ```
 
-Then run the demo beats from the UI at `$BASE`: **Reset demo** → resume the **Adherence Risk
-Agent** (Agents view) → Simulation bar → `send-at-risk` → approve the recommendation → Marlowe
-goes HIGH → LOW. Resume the **Access Workflow Agent** → `new-referral` → an `[Agent]` task
-appears. (Full presenter script: phase-3-design.md §10.)
+Then run the demo beats from the UI at `$BASE`: **Reset demo** (referral queue starts empty —
+patients/clinics/medications/payers are still seeded) → resume all three agents → `new-referral`
+→ an `[Agent]` task appears from the **Access Workflow Agent**'s triage → `submit-prior-auth` →
+`send-at-risk` needs an `Active therapy` referral first, so `advance-referral` a couple of times
+(or the referral page's manual dropdown) past `Ready to fill` → `Delivery scheduled` → `Active
+therapy`, then `send-at-risk` → approve the **Adherence Risk Agent**'s recommendation → risk goes
+HIGH → LOW. (Full presenter script: phase-3-design.md §10; full walkthrough: demo-notes.md.)
 
 ## Gotchas (each cost us time once)
 
