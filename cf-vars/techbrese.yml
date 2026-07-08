@@ -48,10 +48,8 @@ mcp_gateway_service_instance: healthrx-mcp-gw
 mcp_internal_route: healthrx-mcp.apps.internal
 
 # Interim per-agent shared secrets for the embedded MCP action tools (replaced by SSO later).
-# Demo-only credentials, deliberately kept with the rest of the demo config.
-mcp_key_adherence: e9e20f0e9a4c3f0d3e885805f9d3feb8
-mcp_key_access: 8f5e04d7c5d667f8fe442361b4c42a55
-mcp_key_financial_assistance: e7d8962c7e64962293a0ce6abb4d2f1d
+# NOT stored here — they live in cf-vars/techbrese.local.yml (gitignored). Deploy with both:
+#   cf push --vars-file cf-vars/techbrese.yml --vars-file cf-vars/techbrese.local.yml
 
 # Only used as a fallback if the ai-models binding's credentials don't carry model_name
 # (techbrese's gpt-5.4 binding does, so this value is unused there — kept for parity).

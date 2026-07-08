@@ -56,9 +56,9 @@ buildpack: java_buildpack_offline
 postgres_service_instance: healthrx-postgres
 rabbitmq_service_instance: healthrx-rabbitmq
 
-mcp_key_adherence: b364a54063305f03672842b2211ffdcc
-mcp_key_access: 8b8cc76e6d3ebfff72e055a25abbd097
-mcp_key_financial_assistance: aa4e63ca77ed596bcba8dd5dbbf6a8ab
+# MCP shared secrets are NOT stored here — they live in cf-vars/kuhn-labs.local.yml
+# (gitignored). Deploy with both vars files:
+#   cf push --vars-file cf-vars/kuhn-labs.yml --vars-file cf-vars/kuhn-labs.local.yml
 
 postgres_service_offering: postgres
 postgres_service_plan: on-demand-postgres-db

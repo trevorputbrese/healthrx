@@ -53,8 +53,24 @@ cp cf-vars/example.yml cf-vars/<foundation>.yml
 ```
 
 Edit it: replace `<your-apps-domain>` in the routes, set `buildpack`, set `mcp_gateway_url` to the
-dashboard URL from step 1, and generate the three agent secrets (`openssl rand -hex 16` each). Leave
-the service-instance, app-name, and internal-route values as-is (they match the commands above).
+dashboard URL from step 1. Leave the service-instance, app-name, and internal-route values as-is
+(they match the commands above).
+
+**Put the three agent secrets in a separate, gitignored file — never in the tracked vars file.**
+The tracked `cf-vars/<foundation>.yml` holds only non-secret config; the MCP shared secrets go in
+`cf-vars/<foundation>.local.yml` (matched by `.gitignore`'s `cf-vars/*.local.yml`):
+
+```bash
+cat > cf-vars/<foundation>.local.yml <<EOF
+mcp_key_adherence: $(openssl rand -hex 16)
+mcp_key_access: $(openssl rand -hex 16)
+mcp_key_financial_assistance: $(openssl rand -hex 16)
+EOF
+```
+
+The push (step 4) passes both files. Keeping secrets out of the tracked repo matters: the backend
+and all three agents share these keys, and the embedded `/mcp` action tools are gated by nothing
+but them — a committed key is a live write credential for anyone who can read the repo.
 
 **Also resolve `genai_model_name` now — don't skip this.** Some foundations' `ai-models`
 credentials omit the model identifier entirely (see the gotcha below), and the agents will
@@ -85,8 +101,11 @@ isn't part of the Gradle multi-project, so it needs this one extra command.
 ## 4. Push everything
 
 ```bash
-cf push --vars-file cf-vars/<foundation>.yml
+cf push --vars-file cf-vars/<foundation>.yml --vars-file cf-vars/<foundation>.local.yml
 ```
+
+(The second `--vars-file` supplies the secrets from step 2. If you forget it, the push fails loudly
+on the missing `mcp_key_*` vars rather than deploying a weak or placeholder key.)
 
 One push does all nine apps: the manifest binds each to its services, and the `healthrx-mcp-gw`
 bindings **are** the MCP-server registrations (binding an app to the gateway registers it under

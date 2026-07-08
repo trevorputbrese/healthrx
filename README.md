@@ -135,8 +135,9 @@ Postgres is provisioned ahead of time and bound by name (it is **not** created b
 ```bash
 cf target -o <your-org> -s healthrx
 ./gradlew clean build
-cf push --vars-file cf-vars/techbrese.yml          # deploys BOTH apps (healthrx + healthrx-generator)
-# (cf push healthrx --vars-file …  to redeploy just the API)
+# Secrets live in cf-vars/techbrese.local.yml (gitignored) — pass it as a second vars file:
+cf push --vars-file cf-vars/techbrese.yml --vars-file cf-vars/techbrese.local.yml
+# (cf push healthrx --vars-file … --vars-file …  to redeploy just the API)
 ```
 
 `cf-vars/techbrese.yml` is filled in for the techbrese.com foundation (apps `healthrx` +
