@@ -213,7 +213,7 @@ this is additive.
 
 ## 11. Phase 3 preview (so Phase 2 fits it)
 
-- **Agents** (Spring Boot + **Spring AI**, separate CF apps — matches the Shields Spring audience and
+- **Agents** (Spring Boot + **Spring AI**, separate CF apps — matches a Spring-developer audience and
   the "easy to build" story):
   - **Access Workflow Agent** — watches `ReferralCreated`/stuck referrals → summarizes the case +
     recommends the next access action / drafts a note.

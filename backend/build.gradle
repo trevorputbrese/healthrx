@@ -4,7 +4,7 @@ plugins {
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
-group = 'com.shields'
+group = 'com.healthrx'
 version = '0.1.0'
 description = 'HealthRx specialty pharmacy care operations API'
 

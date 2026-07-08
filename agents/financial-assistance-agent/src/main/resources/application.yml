@@ -55,4 +55,4 @@ healthrx:
 
 logging:
   level:
-    com.shields.healthrx.agent: INFO
+    com.healthrx.agent: INFO

@@ -8,11 +8,11 @@ orientation doc for demo presenters and stakeholders. For the deeper build contr
 ## What HealthRx is
 
 HealthRx is a specialty pharmacy **care operations console** — a simplified, demo-safe stand-in
-for the kind of workflows Shields Health Solutions runs on its TelemetryRx platform. Shields
-partners with health systems to operate their specialty pharmacy programs. The operational value
-is to: capture the specialty prescription in-system, **remove access barriers** (eligibility,
-benefits, prior authorization, financial assistance), get the patient **on therapy quickly**,
-then **keep them adherent** and report outcomes back to the health system and payers.
+for the workflows a specialty pharmacy organization runs when it partners with health systems to
+operate their specialty pharmacy programs. The operational value is to: capture the specialty
+prescription in-system, **remove access barriers** (eligibility, benefits, prior authorization,
+financial assistance), get the patient **on therapy quickly**, then **keep them adherent** and
+report outcomes back to the health system and payers.
 
 HealthRx mirrors that with three views: an operational work queue, a patient care workbench, and
 an outcomes dashboard.
@@ -126,18 +126,18 @@ reflect this (authentication is deferred in Phase 1, so a header selector choose
 Physicians/clinics are the **source** of referrals (and a future audience for outcome reports),
 but the day-to-day operators of HealthRx are the pharmacy access and clinical teams.
 
-## Why it matters to a company like Shields
+## Why this matters to healthcare providers
 
 - **Access barrier removal is the core service.** The queue makes benefits investigation, prior
-  authorization, and financial assistance visible and trackable — the work Shields does to get
-  patients on therapy.
+  authorization, and financial assistance visible and trackable — the work a specialty pharmacy
+  team does to get patients on therapy.
 - **Time-to-therapy and PA turnaround are headline KPIs.** The "Days / PA Age" column and the
   dashboard medians put those bottlenecks front and center.
 - **Adherence and outcomes retain patients and revenue.** The Workbench's PDC adherence and
   refill-risk flags, plus interventions and outreach, mirror the clinical follow-up that keeps
   specialty patients on therapy.
 - **Reporting closes the loop.** The dashboard gives leadership and (eventually) health-system
-  partners the data-driven outcomes view that Shields' model is built on.
+  partners the data-driven outcomes view that specialty pharmacy programs are built on.
 
 > All patient and medication data in HealthRx is fictional. It is a demo, not a production HIPAA
 > system, and does not integrate with real EMR, payer, pharmacy, or manufacturer systems.

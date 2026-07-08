@@ -1,2 +1,2 @@
 org.springframework.boot.env.EnvironmentPostProcessor=\
-com.shields.healthrx.agent.financial.config.GenAiCfEnvProcessor
+com.healthrx.agent.financial.config.GenAiCfEnvProcessor

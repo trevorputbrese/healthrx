@@ -6,14 +6,14 @@ HealthRx
 
 ## Purpose
 
-HealthRx is a specialty pharmacy demo application designed to make Shields Health Solutions' TelemetryRx-style workflows tangible on Tanzu Platform for Cloud Foundry.
+HealthRx is a specialty pharmacy demo application designed to make real-world specialty pharmacy workflows tangible on Tanzu Platform for Cloud Foundry.
 
-The app should look and feel like a real specialty pharmacy operating system.  It only needs enough workflow depth for the Shields CTO, platform engineering team, Spring developers, and AI leadership to recognize the domain and see a credible path toward agentic capabilities.
+The app should look and feel like a real specialty pharmacy operating system.  It only needs enough workflow depth for healthcare technology and platform leaders, platform engineering teams, Spring developers, and AI leadership to recognize the domain and see a credible path toward agentic capabilities.
 
 
 ## Demo Thesis
 
-Tanzu Platform can host the core application, the data services, the event-driven data generator, and future AI agents in one operationally consistent environment. The same platform patterns Shields already knows for Spring applications can also support agentic applications with model access, observability, and governance.
+Tanzu Platform can host the core application, the data services, the event-driven data generator, and future AI agents in one operationally consistent environment. The same platform patterns enterprises already know for Spring applications can also support agentic applications with model access, observability, and governance.
 
 ## Phase 1 Scope
 
@@ -40,7 +40,7 @@ Example capabilities:
 
 Why it matters:
 
-This maps to public Shields messaging around patient enrollment, EMR-driven identification, benefits investigation, claims testing, and removing access barriers.
+This maps to how specialty pharmacy programs describe their work: patient enrollment, EMR-driven identification, benefits investigation, claims testing, and removing access barriers.
 
 ### 2. Patient Therapy Workbench
 
@@ -76,7 +76,7 @@ Example capabilities:
 
 Why it matters:
 
-Shields emphasizes data-driven workflows, real-time dashboards, adherence, outcomes, and reporting. A concise dashboard gives the demo an executive view without building a full analytics product.
+Specialty pharmacy programs emphasize data-driven workflows, real-time dashboards, adherence, outcomes, and reporting. A concise dashboard gives the demo an executive view without building a full analytics product.
 
 ## Demo Narrative
 
@@ -88,7 +88,7 @@ This narrative sets up Phase 3 cleanly: an agent can watch the same queue, summa
 
 ## Non-Goals
 
-- Do not attempt to replicate all TelemetryRx capabilities.
+- Do not attempt to replicate a full production specialty pharmacy platform.
 - Do not build a production-grade HIPAA system.
 - Do not integrate with real EMR, pharmacy, payer, or manufacturer systems.
 - Do not model every specialty pharmacy edge case.

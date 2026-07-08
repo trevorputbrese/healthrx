@@ -203,7 +203,7 @@ Recommended backend stack:
 - PostgreSQL driver.
 - Spring Boot Actuator.
 
-Spring Data JDBC is the Phase 1 default because the domain model is small, relationship traversal is explicit, and the app does not need complex ORM behavior. If the Shields Spring team strongly prefers JPA later, the repository layer should be the only planned swap point.
+Spring Data JDBC is the Phase 1 default because the domain model is small, relationship traversal is explicit, and the app does not need complex ORM behavior. If a team strongly prefers JPA later, the repository layer should be the only planned swap point.
 
 ## Frontend
 

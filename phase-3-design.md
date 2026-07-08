@@ -111,7 +111,7 @@ service (reason).
 
 ## 4. Platform inventory, provisioning & wiring
 
-Verified in `shields-demo` / `healthrx` (2026-07-01):
+Verified on the techbrese foundation's `healthrx` space (2026-07-01):
 
 | Service / app | Offering / plan | Status |
 | --- | --- | --- |

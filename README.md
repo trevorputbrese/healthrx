@@ -133,7 +133,7 @@ create-service commands, the bindings, and the push order.
 Postgres is provisioned ahead of time and bound by name (it is **not** created by the deploy).
 
 ```bash
-cf target -o shields-demo -s healthrx
+cf target -o <your-org> -s healthrx
 ./gradlew clean build
 cf push --vars-file cf-vars/techbrese.yml          # deploys BOTH apps (healthrx + healthrx-generator)
 # (cf push healthrx --vars-file …  to redeploy just the API)

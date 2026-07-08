@@ -35,4 +35,4 @@ healthrx:
 
 logging:
   level:
-    com.shields.healthrx.generator: INFO
+    com.healthrx.generator: INFO

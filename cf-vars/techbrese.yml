@@ -1,5 +1,5 @@
-# techbrese.com foundation. Target before pushing:
-#   cf target -o shields-demo -s healthrx
+# techbrese.com foundation. Target before pushing (use this foundation's org name):
+#   cf target -o <your-org> -s healthrx
 # (HealthRx lives in the `healthrx` space, NOT `pulserx`.)
 # Preconditions: both healthrx-postgres and healthrx-rabbitmq must already be provisioned in this
 # space (cf services) before `cf push` — the manifest binds both by name (Phase 2 uses RabbitMQ).
