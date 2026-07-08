@@ -1000,23 +1000,28 @@ textarea:focus {
   width: 1%;
 }
 
-/* ---- Simulation bar ---- */
+/* ---- Simulation bar: a console-style control strip docked to the viewport bottom ---- */
 .simbar {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  padding: 8px 24px;
+  padding: 10px 24px;
   background: #102333;
   color: #cdd9e5;
   font-size: 13px;
-  position: sticky;
-  top: 56px;
-  z-index: 9;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  box-shadow: 0 -2px 10px rgba(16, 35, 54, 0.18);
 }
 .simbar.simbar-offline {
   color: var(--text-faint);
   background: var(--surface-2);
+  border-top: 1px solid var(--border);
+  box-shadow: none;
 }
 .sim-dot {
   width: 9px;

@@ -6,8 +6,10 @@ import SimulationBar from './SimulationBar';
 
 /**
  * Nav grouped by what the user is doing: working (my queue + my tasks), looking things up
- * (records), understanding the program (insight), and the AI teammates. Groups render with
- * subtle dividers so everything stays one visible row — nothing hides behind menus on stage.
+ * (records), understanding the program (insight), and the AI teammates. Groups are visually
+ * separated only by hairline dividers (group names stay as aria-labels) — one calm row, nothing
+ * hides behind menus on stage. The simulation controls dock as a fixed strip at the bottom of
+ * the viewport, console-style, so the header stays product, not demo rig.
  */
 const NAV_GROUPS: { label: string; links: { to: string; label: string; end?: boolean }[] }[] = [
   {
@@ -46,27 +48,24 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <header className="app-header">
         <div className="app-brand">
           <span className="app-brand-mark">Rx</span>
-          <span className="app-brand-name">HealthRx</span>
-          <span className="app-brand-sub">Specialty Pharmacy Care Operations</span>
+          <span className="app-brand-text">
+            <span className="app-brand-name">HealthRx</span>
+            <span className="app-brand-sub">Specialty Pharmacy Care Operations</span>
+          </span>
         </div>
         <nav className="app-nav">
           {NAV_GROUPS.map((group) => (
             <div key={group.label} className="app-nav-group" aria-label={group.label}>
-              <span className="app-nav-group-label" aria-hidden>
-                {group.label}
-              </span>
-              <div className="app-nav-group-links">
-                {group.links.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    className={({ isActive }) => (isActive ? 'app-nav-link is-active' : 'app-nav-link')}
-                  >
-                    {item.label}
-                  </NavLink>
-                ))}
-              </div>
+              {group.links.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  className={({ isActive }) => (isActive ? 'app-nav-link is-active' : 'app-nav-link')}
+                >
+                  {item.label}
+                </NavLink>
+              ))}
             </div>
           ))}
         </nav>
@@ -74,9 +73,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <ActingAsSelector />
         </div>
       </header>
-      <SimulationBar />
       <AgentTicker />
       <main className="app-main">{children}</main>
+      <SimulationBar />
     </div>
   );
 }

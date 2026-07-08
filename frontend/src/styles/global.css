@@ -66,9 +66,9 @@ a:hover {
 .app-header {
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 36px;
   padding: 0 24px;
-  height: 56px;
+  height: 60px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   position: sticky;
@@ -78,68 +78,65 @@ a:hover {
 
 .app-brand {
   display: flex;
-  align-items: baseline;
-  gap: 9px;
+  align-items: center;
+  gap: 10px;
 }
 .app-brand-mark {
   font-weight: 700;
   color: #fff;
   background: var(--primary);
   border-radius: var(--radius-sm);
-  padding: 3px 7px;
-  font-size: 13px;
-  align-self: center;
+  padding: 6px 9px;
+  font-size: 15px;
+  line-height: 1;
+}
+.app-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 .app-brand-name {
   font-weight: 700;
-  font-size: 16px;
-  letter-spacing: 0.2px;
+  font-size: 18px;
+  letter-spacing: 0.1px;
+  line-height: 1.1;
 }
 .app-brand-sub {
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
+/* One calm row of links; hairline dividers carry the grouping, no labels. */
 .app-nav {
   display: flex;
   align-items: center;
-  gap: 18px;
 }
 .app-nav-group {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0;
-  padding-left: 18px;
+  gap: 2px;
+  padding: 0 14px;
   border-left: 1px solid var(--border);
 }
 .app-nav-group:first-child {
   padding-left: 0;
   border-left: none;
 }
-.app-nav-group-label {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  line-height: 1;
-  margin-bottom: 2px;
-}
-.app-nav-group-links {
-  display: flex;
-  gap: 2px;
-}
 .app-nav-link {
-  padding: 3px 12px 4px;
+  padding: 7px 12px;
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-weight: 500;
   font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
 }
 .app-nav-link:hover {
   background: var(--surface-2);
   text-decoration: none;
+  color: var(--text);
 }
 .app-nav-link.is-active {
   background: var(--primary-soft);
@@ -150,7 +147,7 @@ a:hover {
   margin-left: auto;
 }
 
-/* Keep the grouped nav on one line for typical demo laptops. */
+/* Keep the nav on one line for typical demo laptops. */
 @media (max-width: 1280px) {
   .app-brand-sub {
     display: none;
@@ -159,7 +156,8 @@ a:hover {
 
 .app-main {
   flex: 1;
-  padding: 20px 24px 40px;
+  /* Bottom padding clears the fixed simulation strip docked at the viewport bottom. */
+  padding: 20px 24px 96px;
   max-width: 1480px;
   width: 100%;
   margin: 0 auto;
