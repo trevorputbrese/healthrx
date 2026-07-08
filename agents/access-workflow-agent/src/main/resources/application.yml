@@ -61,6 +61,9 @@ healthrx:
     # shed; human-driven (healthrx-api) submissions bypass the cap entirely.
     payer-portal-url: ${HEALTHRX_PAYER_PORTAL_URL:http://localhost:8084}
     payer-rate-per-minute: ${HEALTHRX_AGENT_PAYER_RATE_PER_MINUTE:30}
+    # Benefits beat (BENEFITS_INVESTIGATION -> PA submitted): deterministic like the payer path,
+    # same generous-cap rationale; human-driven (healthrx-api) advances bypass the cap entirely.
+    benefits-rate-per-minute: ${HEALTHRX_AGENT_BENEFITS_RATE_PER_MINUTE:30}
 
 logging:
   level:

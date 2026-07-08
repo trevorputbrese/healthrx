@@ -33,6 +33,21 @@ Every run lands in the Agents activity feed as **Acted autonomously**, with the 
 
 ---
 
+# The benefits beat and the task↔referral link (added July 2026)
+
+One human touch is now all a referral needs before the agents carry it to `Ready to fill`.
+
+**The benefits beat.** The moment a referral enters `Benefits investigation` — you advancing it from the referral page, you completing the intake task (below), the `advance-referral` scenario, or the ambient stream — the **Access Workflow Agent** picks it up, runs the coverage check against the case record (payer, plan type, medication, expected copay, financial-assistance flag — audited SQL through the MCP gateway), and **submits the prior authorization itself** through the new `submit_prior_auth` MCP tool. That lands the referral in `Prior auth submitted`, which hands it straight to the payer beat above. The full chain from that one touch: benefits check → PA submitted → ClearPath decision → (BridgeFund, if assistance is needed) → `Ready to fill`, each step its own feed entry, all within ~10 seconds.
+
+**Tasks now do something.** The Tasks queue and the referral lifecycle are linked in both directions:
+
+- **Completing an agent-routed access task does the work it asked for.** The intake-review task the agent files for every new referral completes-and-advances: the referral moves to `Benefits investigation` and the chain above fires. Same pattern for a PA-denial appeal task (completing it resubmits the PA — ClearPath fast-tracks the appeal) and a financial-assistance review task (releases the fill). The button reads **Complete & advance** whenever this applies, the expanded row spells out exactly what will happen, and a green confirmation banner links to the referral afterward.
+- **Advancing a referral auto-completes its open tasks.** Move a referral forward from the queue or referral page and any open tasks on it complete themselves — the world moved past the ask, so the queue reflects that. Cancelling a referral cancels its open tasks. Refill follow-up tasks are exempt (they track the therapy refill cycle, not the access lifecycle).
+
+**The minimal on-stage loop:** `new-referral` → open **My Tasks** → **Complete & advance** on the agent's intake task → watch the ticker fire two or three times in a row as the referral sails to `Ready to fill`.
+
+---
+
 # The financial-assistance beat (added July 2026)
 
 There's no dedicated scenario button for this one — it fires **automatically** the instant a referral reaches `PRIOR_AUTH_APPROVED`, whether that happened via `submit-prior-auth` → ClearPath approval, a human advancing the referral, or the ambient stream. That means the `submit-prior-auth` beat above often chains straight into this one with no extra clicks.
@@ -58,11 +73,10 @@ Every run lands in the Agents feed as **Acted autonomously**, with its own trace
 
 **To get a referral all the way to `Active therapy`** (a prerequisite for `send-at-risk`, since that button needs an active therapy to act on):
 
-1. `new-referral` — creates one at `Eligibility identified`.
-2. `submit-prior-auth` — chains it through `Benefits investigation` straight to `Prior auth submitted`. Within a few seconds the **Access Workflow Agent** (must be resumed) contacts ClearPath and records the decision.
-3. If **approved**, and the referral needs financial assistance (~1 in 5), the **Financial Assistance Agent** (must be resumed) contacts BridgeFund within a few seconds and advances it to `Ready to fill` either way.
-4. `advance-referral` (or the manual status dropdown on the referral detail page) — `Ready to fill` → `Delivery scheduled` → `Active therapy`. With only one or two referrals in flight, `advance-referral`'s random pick reliably lands on the right one; the manual dropdown is fully deterministic if you want to be sure.
-5. Now `send-at-risk` has something to act on.
+1. `new-referral` — creates one at `Eligibility identified`; the Access Workflow Agent triages it and routes an intake task to **My Tasks** within a few seconds.
+2. **Complete & advance** that task (or advance the referral to `Benefits investigation` from the queue/referral page, or click `submit-prior-auth` as the zero-touch shortcut) — the Access Workflow Agent runs the benefits check, submits the PA, contacts ClearPath, and records the decision; if approved, the Financial Assistance Agent follows within seconds and lands it at `Ready to fill` either way. One touch total (both agents must be resumed).
+3. `advance-referral` twice (or the manual status dropdown on the referral detail page) — `Ready to fill` → `Delivery scheduled` → `Active therapy`. With only one or two referrals in flight, `advance-referral`'s random pick reliably lands on the right one; the manual dropdown is fully deterministic if you want to be sure.
+4. Now `send-at-risk` has something to act on.
 
 With an empty starting queue this whole walk is normally just one referral at a time, so `advance-referral`'s randomness isn't really in play — it only matters if you've deliberately got several referrals in flight at once.
 
@@ -73,4 +87,4 @@ With an empty starting queue this whole walk is normally just one referral at a 
 - **Agents view**: mission blurbs on each agent card, plain-English statuses ("Awaiting approval" / "Acted autonomously"), narrated traces with the raw MCP calls collapsed behind "raw call", and new feed entries flash.
 - **Queue rows flash amber** when their status changes between polls — agent- and simulation-driven movement is visible without anyone clicking.
 
-**Suggested demo arc, from an empty queue:** Reset demo → resume all three agents → `new-referral` (queue grows from zero) → `submit-prior-auth` → watch the ticker + queue flash as the referral advances (often twice in a row: PA approval, then straight into a financial-assistance decision if this one needed it), expand both feed entries, show the ClearPath and BridgeFund portal tabs → `advance-referral` a couple of times (or the referral page's manual dropdown) to reach `Active therapy` → `send-at-risk` → approve the Adherence agent's plan → `resolve-risk` closes the story with the risk badge dropping.
+**Suggested demo arc, from an empty queue:** Reset demo → resume all three agents → `new-referral` (queue grows from zero; the agent's intake task lands in My Tasks) → **Complete & advance** the intake task → watch the ticker + queue flash as the referral chains by itself (benefits check → PA submitted → ClearPath approval → a financial-assistance decision if this one needed it), expand the feed entries, show the ClearPath and BridgeFund portal tabs → `advance-referral` a couple of times (or the referral page's manual dropdown) to reach `Active therapy` → `send-at-risk` → approve the Adherence agent's plan → `resolve-risk` closes the story with the risk badge dropping.

@@ -24,14 +24,14 @@ public class TaskRepository {
             UUID id, String type, String status, String priority, String title, String description,
             Instant dueAt, Instant completedAt, Instant createdAt,
             UUID patientId, String patientName, UUID referralId, String referralNumber,
-            UUID ownerId, String ownerName) {
+            String referralStatus, UUID ownerId, String ownerName) {
     }
 
     private static final String SELECT = """
             select t.id, t.type, t.status, t.priority, t.title, t.description,
                    t.due_at, t.completed_at, t.created_at,
                    p.id as patient_id, p.first_name || ' ' || p.last_name as patient_name,
-                   r.id as referral_id, r.referral_number,
+                   r.id as referral_id, r.referral_number, r.current_status as referral_status,
                    ct.id as owner_id, ct.display_name as owner_name
             from tasks t
             join patients p on p.id = t.patient_id
@@ -46,6 +46,7 @@ public class TaskRepository {
             Columns.instant(rs, "created_at"),
             Columns.uuid(rs, "patient_id"), rs.getString("patient_name"),
             Columns.uuid(rs, "referral_id"), rs.getString("referral_number"),
+            rs.getString("referral_status"),
             Columns.uuid(rs, "owner_id"), rs.getString("owner_name"));
 
     public List<TaskRow> page(String status, String search, int page, int size) {
@@ -87,6 +88,27 @@ public class TaskRepository {
     public Optional<TaskRow> find(UUID id) {
         return jdbc.query(SELECT + " where t.id = :id", new MapSqlParameterSource("id", id), MAPPER)
                 .stream().findFirst();
+    }
+
+    /**
+     * Completes the referral's still-open tasks when the workflow moves past them. Refill
+     * follow-ups are excluded: they track the therapy refill cycle, not the access lifecycle.
+     */
+    public int completeOpenForReferral(UUID referralId, Instant completedAt) {
+        return jdbc.update("""
+                update tasks set status = 'COMPLETED', completed_at = :completed
+                where referral_id = :rid and status in ('OPEN', 'IN_PROGRESS')
+                  and type <> 'REFILL_FOLLOW_UP'""",
+                new MapSqlParameterSource()
+                        .addValue("rid", referralId).addValue("completed", Columns.ts(completedAt)));
+    }
+
+    /** Cancels every open task for a referral (its cancellation makes them all moot). */
+    public int cancelOpenForReferral(UUID referralId) {
+        return jdbc.update("""
+                update tasks set status = 'CANCELLED'
+                where referral_id = :rid and status in ('OPEN', 'IN_PROGRESS')""",
+                new MapSqlParameterSource("rid", referralId));
     }
 
     /** Moves the task to the new status, stamping/clearing completed_at as appropriate. */

@@ -22,7 +22,7 @@ public class HealthRxActionTools {
 
     private static final Map<AgentName, Set<String>> ALLOWED = Map.of(
             AgentName.ADHERENCE_RISK, Set.of("log_outreach", "create_intervention", "record_prescription_fill"),
-            AgentName.ACCESS_WORKFLOW, Set.of("create_task", "record_prior_auth_decision"),
+            AgentName.ACCESS_WORKFLOW, Set.of("create_task", "submit_prior_auth", "record_prior_auth_decision"),
             AgentName.FINANCIAL_ASSISTANCE, Set.of("record_financial_assistance_decision"));
 
     private final AgentActionService actions;
@@ -91,6 +91,20 @@ public class HealthRxActionTools {
         authorize("create_task");
         return actions.createTask(parse(recommendationId, "recommendationId"), parse(patientId, "patientId"),
                 parse(referralId, "referralId"), priority, title, description, dueAt);
+    }
+
+    @Tool(name = "submit_prior_auth", description = """
+            Submit the prior authorization for a referral whose benefits investigation is
+            complete: advances BENEFITS_INVESTIGATION to PRIOR_AUTH_SUBMITTED, which hands the
+            case to the payer follow-up beat. If the referral already moved on, returns
+            applied=false with the current status. Returns JSON.""")
+    public String submitPriorAuth(
+            @ToolParam(description = "The recommendation id this action belongs to") String recommendationId,
+            @ToolParam(description = "Referral UUID") String referralId,
+            @ToolParam(description = "Status-history note, e.g. coverage findings", required = false) String note) {
+        AgentName agent = authorize("submit_prior_auth");
+        return actions.submitPriorAuth(agent, parse(recommendationId, "recommendationId"),
+                parse(referralId, "referralId"), note);
     }
 
     @Tool(name = "record_prior_auth_decision", description = """

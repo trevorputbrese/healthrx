@@ -66,6 +66,25 @@
   border-radius: var(--radius-sm, 6px);
   padding: 10px 12px;
 }
+/* What completing the task will do to its referral — shown before the action buttons. */
+.task-advance-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-faint, #5b6875);
+}
+/* Page-level confirmation after a completion advanced the referral (the row leaves the list). */
+.task-advance-notice {
+  background: var(--ok-soft, #e7f5ec);
+  color: var(--ok, #1d7a4c);
+  border: 1px solid var(--ok, #1d7a4c);
+  border-radius: var(--radius-sm, 6px);
+  padding: 10px 14px;
+  font-size: 13px;
+}
+.task-advance-notice a {
+  color: inherit;
+  font-weight: 600;
+}
 .acting-as-label {
   color: var(--text-faint);
 }

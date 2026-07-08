@@ -13,6 +13,7 @@ import type {
   ReferralSummary,
   SimStatus,
   TaskItem,
+  TaskStatusChangeResult,
   TimelineResponse,
 } from './types';
 
@@ -206,10 +207,11 @@ export function useTaskStatusChange() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, toStatus }: { id: string; toStatus: string }) =>
-      api.patch<TaskItem>(`/api/tasks/${id}/status`, { toStatus }),
+      api.patch<TaskStatusChangeResult>(`/api/tasks/${id}/status`, { toStatus }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tasks'] });
-      // Task counts surface on referral/patient pages and the queue.
+      // Task counts surface on referral/patient pages and the queue; a completion may also
+      // have advanced the linked referral, so those views must refetch either way.
       qc.invalidateQueries({ queryKey: ['referrals'] });
       qc.invalidateQueries({ queryKey: ['referral'] });
       qc.invalidateQueries({ queryKey: ['patients'] });

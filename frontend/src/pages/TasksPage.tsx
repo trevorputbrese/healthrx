@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSimStatus, useTasks, useTaskStatusChange } from '../api/hooks';
-import type { TaskItem } from '../api/types';
+import type { ReferralAdvance, TaskItem } from '../api/types';
 import { agentTask, dateOnly, priorityTone, relativeTime, titleCase } from '../format';
 import { Card, Chip, EmptyState, StateBlock } from '../components/ui';
 import { InterventionModal, OutreachModal } from '../components/PatientActionModals';
@@ -27,6 +27,8 @@ export default function TasksPage() {
   const [statusFilter, setStatusFilter] = useState('OPEN_ALL');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
+  const [advanceNotice, setAdvanceNotice] = useState<ReferralAdvance | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const query = useTasks({
     status: statusFilter || undefined,
@@ -35,6 +37,15 @@ export default function TasksPage() {
     size: PAGE_SIZE,
   });
 
+  // A completed task that advanced its referral gets a page-level confirmation (the row itself
+  // leaves the Open filter immediately, so inline feedback would vanish with it).
+  const showAdvance = (advance: ReferralAdvance) => {
+    setAdvanceNotice(advance);
+    clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setAdvanceNotice(null), 8000);
+  };
+  useEffect(() => () => clearTimeout(noticeTimer.current), []);
+
   return (
     <div className="page">
       <div className="page-head">
@@ -42,11 +53,22 @@ export default function TasksPage() {
           <h1>My Tasks</h1>
           <p className="page-sub">
             Your work list — everything assigned to you, by the care team&apos;s agents or the
-            workflow itself. Open a task for the full context, then mark it complete when the
-            work is done.
+            workflow itself. Completing a task does the work it asked for: agent-routed access
+            tasks advance their referral to the next stage, where the agents pick it back up.
           </p>
         </div>
       </div>
+
+      {advanceNotice && (
+        <div className="task-advance-notice" role="status">
+          Referral{' '}
+          <Link to={`/referrals/${advanceNotice.referralId}`} className="mono">
+            {advanceNotice.referralNumber ?? 'view'}
+          </Link>{' '}
+          advanced to <strong>{advanceNotice.toStatusLabel}</strong> — the agents take it from
+          here. Watch the agent feed for the follow-through.
+        </div>
+      )}
 
       <div className="filters">
         <input
@@ -85,7 +107,7 @@ export default function TasksPage() {
               <>
                 <div className="task-feed">
                   {data.items.map((t) => (
-                    <TaskRow key={t.id} task={t} />
+                    <TaskRow key={t.id} task={t} onAdvanced={showAdvance} />
                   ))}
                 </div>
                 <div className="pager">
@@ -111,13 +133,20 @@ export default function TasksPage() {
   );
 }
 
-function TaskRow({ task }: { task: TaskItem }) {
+function TaskRow({ task, onAdvanced }: { task: TaskItem; onAdvanced: (a: ReferralAdvance) => void }) {
   const [open, setOpen] = useState(false);
   const [modal, setModal] = useState<'outreach' | 'intervention' | null>(null);
   const { data: sim } = useSimStatus();
   const change = useTaskStatusChange();
   const t = agentTask(task.title);
   const active = task.status === 'OPEN' || task.status === 'IN_PROGRESS';
+  const advance = task.advancesReferralTo;
+
+  const complete = () =>
+    change.mutate(
+      { id: task.id, toStatus: 'COMPLETED' },
+      { onSuccess: (res) => res.referralAdvance && onAdvanced(res.referralAdvance) },
+    );
 
   return (
     <div className={`agent-rec task-row ${task.status === 'COMPLETED' ? 'is-done' : ''}`}>
@@ -155,6 +184,14 @@ function TaskRow({ task }: { task: TaskItem }) {
 
           {task.description && <p className="task-description">{task.description}</p>}
 
+          {active && advance && (
+            <p className="task-advance-hint">
+              Completing this task advances{' '}
+              <span className="mono">{advance.referralNumber ?? 'the referral'}</span> to{' '}
+              <strong>{advance.toStatusLabel}</strong> — the agents take it from there.
+            </p>
+          )}
+
           <div className="agent-rec-actions">
             {active && (
               <>
@@ -162,9 +199,9 @@ function TaskRow({ task }: { task: TaskItem }) {
                   type="button"
                   className="btn btn-primary"
                   disabled={change.isPending}
-                  onClick={() => change.mutate({ id: task.id, toStatus: 'COMPLETED' })}
+                  onClick={complete}
                 >
-                  Mark complete
+                  {advance ? 'Complete & advance' : 'Mark complete'}
                 </button>
                 {task.status === 'OPEN' && (
                   <button

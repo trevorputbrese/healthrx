@@ -69,6 +69,14 @@ export interface TaskSummary {
 
 export type TaskStatus = 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
+/** The referral advance a task completion performs (or just performed). */
+export interface ReferralAdvance {
+  referralId: string;
+  referralNumber?: string;
+  toStatus: string;
+  toStatusLabel: string;
+}
+
 /** Tasks-page row: a task with its patient/referral context and full description. */
 export interface TaskItem {
   id: string;
@@ -84,6 +92,14 @@ export interface TaskItem {
   referralId?: string;
   referralNumber?: string;
   owner: NamedRef;
+  /** Present when completing this task advances its referral (agent-routed access tasks). */
+  advancesReferralTo?: ReferralAdvance;
+}
+
+/** PATCH /api/tasks/{id}/status response: the task plus any referral advance it drove. */
+export interface TaskStatusChangeResult {
+  task: TaskItem;
+  referralAdvance?: ReferralAdvance;
 }
 export interface NoteItem {
   id: string;

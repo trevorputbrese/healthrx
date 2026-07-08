@@ -137,6 +137,32 @@ public class AgentActionService {
     }
 
     /**
+     * Submits the prior authorization for a referral whose benefits investigation the calling
+     * agent has completed (BENEFITS_INVESTIGATION -> PRIOR_AUTH_SUBMITTED). The transition
+     * re-broadcasts PriorAuthorizationSubmitted, so the payer follow-up beat picks the case up
+     * next. If the referral already moved on (ambient simulation or a human got there first),
+     * this is a benign no-op that reports the current status instead of failing the agent's run.
+     */
+    public String submitPriorAuth(AgentName agent, UUID recommendationId, UUID referralId, String note) {
+        return once(recommendationId, "submit_prior_auth", () -> {
+            ReferralRepository.State state = referrals.loadState(referralId)
+                    .orElseThrow(() -> ApiException.notFound("Referral", referralId));
+            Map<String, Object> out = new LinkedHashMap<>();
+            if (!ReferralStatus.BENEFITS_INVESTIGATION.name().equals(state.currentStatus())) {
+                out.put("applied", false);
+                out.put("currentStatus", state.currentStatus());
+                out.put("reason", "Referral is not in benefits investigation.");
+                return out;
+            }
+            referralService.transition(referralId, ReferralStatus.PRIOR_AUTH_SUBMITTED.name(),
+                    agent.actorId(), note);
+            out.put("applied", true);
+            out.put("newStatus", ReferralStatus.PRIOR_AUTH_SUBMITTED.name());
+            return out;
+        });
+    }
+
+    /**
      * Records a payer's prior-authorization decision obtained by the calling agent. If the
      * referral has already moved past PRIOR_AUTH_SUBMITTED (a rare race with the ambient
      * simulation or a human), this is a benign no-op that reports the current status instead

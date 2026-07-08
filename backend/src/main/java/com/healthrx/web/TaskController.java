@@ -40,8 +40,9 @@ public class TaskController {
     public record StatusChange(@NotBlank String toStatus) {
     }
 
+    /** Completing a task may also advance its linked referral — the result says when it did. */
     @PatchMapping("/{id}/status")
-    public TaskDtos.Item updateStatus(@PathVariable UUID id, @Valid @RequestBody StatusChange body) {
+    public TaskDtos.StatusChangeResult updateStatus(@PathVariable UUID id, @Valid @RequestBody StatusChange body) {
         return service.updateStatus(id, body.toStatus());
     }
 }

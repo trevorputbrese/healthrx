@@ -24,6 +24,19 @@ public final class TaskDtos {
             NamedRef patient,
             UUID referralId,
             String referralNumber,
-            NamedRef owner) {
+            NamedRef owner,
+            ReferralAdvance advancesReferralTo) {
+    }
+
+    /** The referral advance a task completion performs (or just performed). */
+    public record ReferralAdvance(
+            UUID referralId,
+            String referralNumber,
+            String toStatus,
+            String toStatusLabel) {
+    }
+
+    /** PATCH /api/tasks/{id}/status response: the task plus any referral advance it drove. */
+    public record StatusChangeResult(Item task, ReferralAdvance referralAdvance) {
     }
 }

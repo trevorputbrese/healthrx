@@ -25,6 +25,7 @@ import com.healthrx.repo.ReferralRepository.DetailRow;
 import com.healthrx.repo.ReferralRepository.QueueRow;
 import com.healthrx.repo.ReferralRepository.State;
 import com.healthrx.repo.ReferralRepository.StatusHistoryInsert;
+import com.healthrx.repo.TaskRepository;
 import com.healthrx.repo.TherapyRepository;
 import com.healthrx.web.ApiException;
 import com.healthrx.web.dto.CommonDtos.EntityRef;
@@ -37,15 +38,19 @@ import com.healthrx.web.dto.ReferralDtos;
 @Service
 public class ReferralService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ReferralService.class);
+
     /** Statuses whose entry is re-broadcast onto the event bus for the agents watching them. */
-    private static final java.util.Set<ReferralStatus> RE_BROADCAST_ON_ENTER =
-            java.util.Set.of(ReferralStatus.PRIOR_AUTH_SUBMITTED, ReferralStatus.PRIOR_AUTH_APPROVED);
+    private static final java.util.Set<ReferralStatus> RE_BROADCAST_ON_ENTER = java.util.Set.of(
+            ReferralStatus.BENEFITS_INVESTIGATION, ReferralStatus.PRIOR_AUTH_SUBMITTED,
+            ReferralStatus.PRIOR_AUTH_APPROVED);
 
     private final ReferralRepository referrals;
     private final CareTeamRepository careTeam;
     private final TherapyRepository therapies;
     private final RefillRiskService riskService;
     private final AgentRecommendationRepository agentRecommendations;
+    private final TaskRepository tasks;
     private final EventLog events;
     private final WorkflowEventPublisher eventPublisher;
     private final ProcessedEventRepository processedEvents;
@@ -53,13 +58,15 @@ public class ReferralService {
 
     public ReferralService(ReferralRepository referrals, CareTeamRepository careTeam, TherapyRepository therapies,
                            RefillRiskService riskService, AgentRecommendationRepository agentRecommendations,
-                           EventLog events, WorkflowEventPublisher eventPublisher,
+                           TaskRepository tasks, EventLog events,
+                           WorkflowEventPublisher eventPublisher,
                            ProcessedEventRepository processedEvents, AppTime time) {
         this.referrals = referrals;
         this.careTeam = careTeam;
         this.therapies = therapies;
         this.riskService = riskService;
         this.agentRecommendations = agentRecommendations;
+        this.tasks = tasks;
         this.events = events;
         this.eventPublisher = eventPublisher;
         this.processedEvents = processedEvents;
@@ -154,21 +161,34 @@ public class ReferralService {
             }
         }
 
+        // Advancing the workflow settles the work items that asked for it: open tasks on this
+        // referral are completed (or cancelled with the referral) so the Tasks queue never
+        // holds stale asks the world already moved past.
+        int resolved = to == ReferralStatus.CANCELLED
+                ? tasks.cancelOpenForReferral(id)
+                : tasks.completeOpenForReferral(id, now);
+        if (resolved > 0) {
+            log.info("referral_tasks_auto_resolved referral={} to={} count={}", id, to, resolved);
+        }
+
         WorkflowEventType event = to.eventOnEnter();
         UUID historyId = UUID.randomUUID();
         referrals.insertStatusHistory(new StatusHistoryInsert(
                 historyId, id, from.name(), to.name(), now, changedById, note, event.wireName()));
         events.emit(event, id, null, "from=" + from.name() + " to=" + to.name());
 
-        // Two transitions are re-broadcast onto the event bus whenever a REAL actor (human or
+        // Three transitions are re-broadcast onto the event bus whenever a REAL actor (human or
         // agent — anyone but the event consumer replaying an already-published event) causes
-        // them: PRIOR_AUTH_SUBMITTED, so the Access Workflow Agent can chase the payer, and
-        // PRIOR_AUTH_APPROVED, so the Financial Assistance Agent can chase copay assistance —
-        // including when the APPROVAL ITSELF came from the Access Agent recording ClearPath's
-        // decision, which is the common path in practice. The eventId is pre-claimed in
-        // processed_events within THIS transaction so the API's own consumer skips the
-        // re-broadcast entirely (late consumption could otherwise regress a referral an agent
-        // already decided, e.g. back to PRIOR_AUTH_SUBMITTED via the resubmit edge).
+        // them: BENEFITS_INVESTIGATION, so the Access Workflow Agent can run the benefits check
+        // and submit the prior auth itself; PRIOR_AUTH_SUBMITTED, so the Access Workflow Agent
+        // can chase the payer — including when the SUBMISSION came from its own benefits beat;
+        // and PRIOR_AUTH_APPROVED, so the Financial Assistance Agent can chase copay assistance —
+        // including when the APPROVAL came from the Access Agent recording ClearPath's decision.
+        // One human advance into Benefits investigation therefore chains agent-side all the way
+        // to Ready to fill. The eventId is pre-claimed in processed_events within THIS
+        // transaction so the API's own consumer skips the re-broadcast entirely (late
+        // consumption could otherwise regress a referral an agent already decided, e.g. back to
+        // PRIOR_AUTH_SUBMITTED via the resubmit edge).
         if (RE_BROADCAST_ON_ENTER.contains(to) && !SystemActors.SYSTEM.equals(changedById)) {
             UUID patientId = referrals.patientOf(id).orElse(null);
             Map<String, Object> payload = new java.util.LinkedHashMap<>();
