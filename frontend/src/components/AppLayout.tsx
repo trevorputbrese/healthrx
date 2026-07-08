@@ -33,7 +33,10 @@ const NAV_GROUPS: { label: string; links: { to: string; label: string; end?: boo
   },
   {
     label: 'AI',
-    links: [{ to: '/agents', label: 'Agents' }],
+    links: [
+      { to: '/agents', label: 'Agents' },
+      { to: '/assistant', label: 'Assistant' },
+    ],
   },
 ];
 

@@ -67,6 +67,26 @@ Every run lands in the Agents feed as **Acted autonomously**, with its own trace
 
 ---
 
+# The Assistant (added July 2026)
+
+**AI → Assistant** in the nav: a chat panel where *you* are the MCP client. Ask about any
+formulary medication or disease state ("What's the missed-dose guidance for Neurosphere?",
+"Outreach tips for rheumatology patients?") and the assistant answers by calling the knowledge
+MCP server's tools **through the same MCP gateway the agents use** — its own marketplace LLM
+instance (`healthrx-chat-assistant-llm`), its own audited gateway calls. Each reply shows a
+**tool chip** ("gateway tool · get_medication_guidance"); hover it for the exact arguments the
+model sent. That's the story beat: the agents' governed tool plane isn't agent-only
+infrastructure — a human-facing feature rides the same rails, and both show up in the same
+gateway audit logs.
+
+The formulary is fictional demo content (the 12 seeded medications across the 4 disease
+states); asked about anything else, the assistant says so instead of inventing guidance.
+Postgres MCP tools ("which of my patients are on Neurosphere?") are a planned follow-on, not
+mounted yet. Architecture sketch: [docs/chat-assistant-architecture.svg](docs/chat-assistant-architecture.svg)
+(walkthrough in [architecture.md](architecture.md)).
+
+---
+
 # Starting from an empty queue (added July 2026)
 
 **Reset demo** now leaves the referral queue completely empty — zero referrals, zero therapies. Patients, clinics, medications, payers, and care team members are still fully seeded (80 patients, ready for `new-referral` to pick from); only the referral lifecycle itself starts blank, so the presenter builds up every referral they use live, on stage, instead of narrating a pile of pre-existing rows.

@@ -101,6 +101,19 @@ export interface TaskStatusChangeResult {
   task: TaskItem;
   referralAdvance?: ReferralAdvance;
 }
+
+/** One audited gateway tool call the assistant made while answering. */
+export interface ChatToolCall {
+  tool: string;
+  arguments: string;
+}
+
+/** POST /api/chat response. */
+export interface ChatResult {
+  conversationId: string;
+  reply: string;
+  toolCalls: ChatToolCall[];
+}
 export interface NoteItem {
   id: string;
   author: NamedRef;

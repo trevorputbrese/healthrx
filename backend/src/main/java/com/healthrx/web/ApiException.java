@@ -59,6 +59,11 @@ public class ApiException extends RuntimeException {
                 detail("fromStatus", from, "toStatus", to));
     }
 
+    /** An upstream dependency (LLM, MCP gateway, partner portal) is unreachable or failing. */
+    public static ApiException upstreamUnavailable(String code, String message, Map<String, Object> details) {
+        return new ApiException(HttpStatus.SERVICE_UNAVAILABLE, code, message, details);
+    }
+
     private static Map<String, Object> detail(Object... kv) {
         Map<String, Object> m = new LinkedHashMap<>();
         for (int i = 0; i + 1 < kv.length; i += 2) {

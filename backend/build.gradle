@@ -29,6 +29,11 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     // Embedded MCP server: publishes the agent action tools at /mcp (phase-3-design.md §5.2).
     implementation 'org.springframework.ai:spring-ai-starter-mcp-server-webmvc'
+    // Chat assistant: ChatClient on the bound marketplace LLM + MCP client to the knowledge
+    // server through the gateway — the human-driven counterpart of the agents' wiring.
+    implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+    implementation 'org.springframework.ai:spring-ai-mcp'
+    implementation 'io.modelcontextprotocol.sdk:mcp'
     implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-validation'

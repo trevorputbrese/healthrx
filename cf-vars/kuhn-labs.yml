@@ -25,6 +25,9 @@ financial_assistance_agent_app_name: healthrx-financial-assistance-agent
 financial_assistance_agent_route: healthrx-financial-assistance-agent.apps.tas-ndc.kuhn-labs.com
 financial_assistance_llm_service_instance: healthrx-financial-assistance-agent-llm
 
+# Chat assistant LLM (bound to the healthrx API app; the Assistant page's model).
+chat_llm_service_instance: healthrx-chat-assistant-llm
+
 # ClearPath Benefits payer portal (stand-in external partner for the agent's payer beat).
 payer_portal_app_name: clearpath-payer-portal
 payer_portal_route: clearpath-payer-portal.apps.tas-ndc.kuhn-labs.com

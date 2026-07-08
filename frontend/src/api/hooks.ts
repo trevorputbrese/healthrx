@@ -3,6 +3,7 @@ import { api, qs } from './client';
 import type {
   AgentRecommendation,
   AgentsResponse,
+  ChatResult,
   DashboardSummary,
   DashboardTrends,
   Lookups,
@@ -200,6 +201,14 @@ export function useTasks(params: { status?: string; search?: string; page?: numb
     queryKey: ['tasks', params],
     queryFn: () => api.get<PageResponse<TaskItem>>(`/api/tasks${qs({ ...params })}`),
     refetchInterval: LIVE,
+  });
+}
+
+/** Sends one assistant message; the caller owns the conversation state. */
+export function useChatMessage() {
+  return useMutation({
+    mutationFn: ({ conversationId, message }: { conversationId?: string; message: string }) =>
+      api.post<ChatResult>('/api/chat', { conversationId, message }),
   });
 }
 

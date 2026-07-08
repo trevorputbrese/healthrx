@@ -59,7 +59,7 @@ flowchart LR
 ## Full System Architecture (As Built)
 
 Phases 1-3 are all implemented and deployed. This is the complete picture — nine Cloud Foundry
-apps and six marketplace service instances — in one diagram, superseding the incremental
+apps and seven marketplace service instances — in one diagram, superseding the incremental
 per-phase sketches above (kept for their historical narrative).
 
 ```mermaid
@@ -84,10 +84,11 @@ flowchart TB
         PG[("Postgres")]
     end
 
-    subgraph AI["Reasoning (marketplace, one instance per agent)"]
+    subgraph AI["Reasoning (marketplace, one instance per consumer)"]
         LLM1["ai-models<br/>adherence instance"]
         LLM2["ai-models<br/>access instance"]
         LLM3["ai-models<br/>financial-assistance instance"]
+        LLM4["ai-models<br/>chat-assistant instance"]
     end
 
     subgraph GWSub["MCP gateway (marketplace) + backing servers"]
@@ -113,9 +114,11 @@ flowchart TB
     Adh --> LLM1
     Acc --> LLM2
     FA --> LLM3
+    API --> LLM4
     Adh -->|reads + acts| GW
     Acc -->|reads + acts| GW
     FA -->|reads + acts| GW
+    API -->|"Assistant chat (knowledge reads)"| GW
     Acc -->|"prior-auth decisions<br/>(plain HTTPS — external API)"| Payer
     FA -->|"assistance decisions<br/>(plain HTTPS — external API)"| Fund
 
@@ -126,6 +129,7 @@ flowchart TB
     LLM1 -.->|token usage| Obs
     LLM2 -.->|token usage| Obs
     LLM3 -.->|token usage| Obs
+    LLM4 -.->|token usage| Obs
 ```
 
 Notes that don't fit neatly into the boxes above:
@@ -148,8 +152,9 @@ Notes that don't fit neatly into the boxes above:
   causes the transition — which is how a human advancing a referral, or the Access Agent
   recording ClearPath's approval, both reach the Financial Assistance Agent.
 
-- **One `ai-models` instance per agent, not shared** — so token usage/latency attribute per
-  agent on the platform dashboards, not just per app.
+- **One `ai-models` instance per consumer, not shared** — three agents plus the chat
+  assistant — so token usage/latency attribute per consumer on the platform dashboards, not
+  just per app.
 - **Binding an app to the MCP gateway *is* how it registers** — that's why exactly three apps
   (`healthrx`, `healthrx-knowledge-mcp`, `healthrx-postgres-mcp-server`) sit behind it, each
   under its own `/<app-name>/mcp` path, and nothing else calls them directly. The two partner
@@ -164,6 +169,27 @@ Notes that don't fit neatly into the boxes above:
   [phase-3-design](phase-3-design.md) §4) — same audited path either way.
 - `ai-models` reports token usage/latency straight to the same platform observability dashboards
   the gateway's audit logs land in — two feeds, one destination.
+
+## The Assistant (human-driven MCP client)
+
+The Assistant page turns the same governed MCP plane the agents use into a chat interface: the
+SPA is only the chat surface; the healthrx API hosts the engine — the ChatClient tool-calling
+loop on the chat assistant's own `ai-models` instance, and an MCP client session to the
+knowledge server through the gateway. Every lookup the model makes is an audited gateway tool
+call, surfaced in the UI as a tool chip under the reply.
+
+![HealthRx Assistant — gateway-backed chatbot flow](docs/chat-assistant-architecture.svg)
+
+1. The SPA posts the user's message to `/api/chat` — plain REST, no credentials in the browser.
+2. The API runs the tool-calling loop against the chat LLM (`healthrx-chat-assistant-llm`).
+3. When the model wants a tool, the API's MCP client calls the gateway over HTTPS.
+4. The gateway routes `/healthrx-knowledge-mcp/mcp` to the knowledge server's internal route
+   and audit-logs the call.
+5. Planned follow-on (dashed): mounting the Postgres MCP read tools in the same chat, so
+   formulary questions and live case questions share one conversation.
+
+The knowledge MCP client connects lazily on the first message, so local runs and tests never
+need a live gateway; a dead gateway or model fails that chat request with a 503, never the app.
 
 Full component-by-component detail (data model, event vocabulary, guardrails, build/deploy) lives
 in [phase-2-design](phase-2-design.md) and [phase-3-design](phase-3-design.md); a from-scratch

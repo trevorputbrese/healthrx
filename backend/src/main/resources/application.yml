@@ -10,6 +10,16 @@ spring:
         version: 0.1.0
         type: SYNC
         protocol: STREAMABLE
+    # Chat assistant model. On Cloud Foundry, GenAiCfEnvProcessor overrides base-url/api-key
+    # from the bound healthrx-chat-assistant-llm (ai-models) instance; GENAI_MODEL pins the
+    # model id when the binding doesn't carry model_name (same pattern as the agents).
+    openai:
+      base-url: ${GENAI_BASE_URL:http://localhost:9090}
+      api-key: ${GENAI_API_KEY:local-dev-key}
+      chat:
+        options:
+          model: ${GENAI_MODEL:gpt-5.4}
+          temperature: 1.0
   # Local development datasource (matches compose.yaml). On Cloud Foundry, java-cfenv
   # overrides spring.datasource.* from the bound Postgres service in VCAP_SERVICES.
   datasource:
@@ -88,6 +98,12 @@ healthrx:
       adherence-risk: ${HEALTHRX_MCP_KEY_ADHERENCE:local-dev-adherence-key}
       access-workflow: ${HEALTHRX_MCP_KEY_ACCESS:local-dev-access-key}
       financial-assistance: ${HEALTHRX_MCP_KEY_FINANCIAL_ASSISTANCE:local-dev-financial-assistance-key}
+  # Chat assistant: the API is itself an MCP client here, reaching the knowledge server through
+  # the same gateway the agents use. The client connects lazily on the first chat message so
+  # local runs and tests never require a live gateway.
+  chat:
+    gateway-url: ${HEALTHRX_MCP_GATEWAY_URL:http://localhost:8080}
+    knowledge-endpoint: ${HEALTHRX_MCP_KNOWLEDGE_ENDPOINT:/healthrx-knowledge-mcp/mcp}
 
 logging:
   level:

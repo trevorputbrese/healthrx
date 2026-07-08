@@ -1,11 +1,11 @@
 # Deploying HealthRx to a New Tanzu Platform for CF Foundation
 
-Everything the demo needs, from an empty org/space to the verified demo beats. Total: **6
+Everything the demo needs, from an empty org/space to the verified demo beats. Total: **7
 marketplace service instances** and **9 apps**, all built and pushed from this one repo.
 
 | # | App | Binds | Route |
 | --- | --- | --- | --- |
-| 1 | `healthrx` (API + SPA + embedded MCP action server) | postgres, rabbitmq, **mcp-gw** (registers `/healthrx/mcp`) | public + `healthrx-mcp.apps.internal` |
+| 1 | `healthrx` (API + SPA + embedded MCP action server + chat assistant) | postgres, rabbitmq, **mcp-gw** (registers `/healthrx/mcp`), chat LLM | public + `healthrx-mcp.apps.internal` |
 | 2 | `healthrx-generator` | postgres, rabbitmq | public |
 | 3 | `healthrx-adherence-agent` | rabbitmq, adherence LLM | public |
 | 4 | `healthrx-access-agent` | rabbitmq, access LLM | public |
@@ -30,16 +30,18 @@ cf marketplace          # find the postgres, rabbitmq, ai-models, and mcp-gatewa
 cf buildpacks           # find the Java buildpack name (java_buildpack_offline vs java_buildpack)
 ```
 
-Create all six instances (adjust plans to your marketplace):
+Create all seven instances (adjust plans to your marketplace):
 
 ```bash
 cf create-service postgres    <postgres-plan>          healthrx-postgres
 cf create-service p.rabbitmq  <rabbitmq-plan>          healthrx-rabbitmq
-# One LLM instance PER agent so token usage attributes per agent on the platform dashboards.
-# Pick a plan/model that supports TOOL CALLING (the agents are unusable without it).
+# One LLM instance PER consumer (three agents + the chat assistant) so token usage attributes
+# per consumer on the platform dashboards.
+# Pick a plan/model that supports TOOL CALLING (the agents and assistant are unusable without it).
 cf create-service ai-models   <tool-calling-model-plan> healthrx-adherence-risk-agent-llm
 cf create-service ai-models   <tool-calling-model-plan> healthrx-access-workflow-agent-llm
 cf create-service ai-models   <tool-calling-model-plan> healthrx-financial-assistance-agent-llm
+cf create-service ai-models   <tool-calling-model-plan> healthrx-chat-assistant-llm
 cf create-service mcp-gateway gateway                   healthrx-mcp-gw
 ```
 

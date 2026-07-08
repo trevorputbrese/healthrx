@@ -24,6 +24,8 @@ applications:
       - ((rabbitmq_service_instance))
       # Registers the embedded MCP action server (/mcp) behind the gateway.
       - ((mcp_gateway_service_instance))
+      # Chat assistant LLM (the API's own marketplace instance, per-consumer attribution).
+      - ((chat_llm_service_instance))
     env:
       # Pin the runtime JRE to 17 so behavior is identical across foundations.
       JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 17.+ } }'
@@ -42,6 +44,9 @@ applications:
       HEALTHRX_MCP_KEY_ADHERENCE: ((mcp_key_adherence))
       HEALTHRX_MCP_KEY_ACCESS: ((mcp_key_access))
       HEALTHRX_MCP_KEY_FINANCIAL_ASSISTANCE: ((mcp_key_financial_assistance))
+      # Chat assistant: the API is itself an MCP client to the knowledge server via the gateway.
+      HEALTHRX_MCP_GATEWAY_URL: ((mcp_gateway_url))
+      GENAI_MODEL: ((genai_model_name))
       # Modest JVM footprint for a 1G container.
       JAVA_OPTS: "-XX:MaxRAMPercentage=75.0"
 

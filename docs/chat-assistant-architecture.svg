@@ -1,0 +1,48 @@
+<svg viewBox="0 0 700 305" width="700" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="cbt cbd" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<title id="cbt">HealthRx Assistant — gateway-backed chatbot architecture</title>
+<desc id="cbd">The SPA chat panel calls the healthrx API over REST; the API runs the LLM tool-calling loop and acts as the MCP client, calling the MCP gateway over HTTPS, which routes to the knowledge MCP server and optionally the postgres MCP server on internal routes.</desc>
+<defs>
+<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#888780"/></marker>
+</defs>
+<rect x="0" y="0" width="700" height="305" fill="#ffffff"/>
+<g>
+<rect x="12" y="70" width="112" height="64" rx="4" fill="#F1EFE8" stroke="#5F5E5A"/>
+<text x="68" y="97" text-anchor="middle" font-size="13" font-weight="500" fill="#444441">SPA chat panel</text>
+<text x="68" y="115" text-anchor="middle" font-size="11" fill="#5F5E5A">browser · no creds</text>
+</g>
+<g>
+<rect x="200" y="70" width="118" height="64" rx="4" fill="#EEEDFE" stroke="#534AB7"/>
+<text x="259" y="97" text-anchor="middle" font-size="13" font-weight="500" fill="#3C3489">healthrx API</text>
+<text x="259" y="115" text-anchor="middle" font-size="11" fill="#534AB7">MCP client + loop</text>
+</g>
+<g>
+<rect x="388" y="70" width="112" height="64" rx="4" fill="#E1F5EE" stroke="#0F6E56"/>
+<text x="444" y="97" text-anchor="middle" font-size="13" font-weight="500" fill="#085041">MCP gateway</text>
+<text x="444" y="115" text-anchor="middle" font-size="11" fill="#0F6E56">routes + audits</text>
+</g>
+<g>
+<rect x="568" y="70" width="112" height="64" rx="4" fill="#E1F5EE" stroke="#0F6E56"/>
+<text x="624" y="97" text-anchor="middle" font-size="13" font-weight="500" fill="#085041">knowledge MCP</text>
+<text x="624" y="115" text-anchor="middle" font-size="11" fill="#0F6E56">internal route only</text>
+</g>
+<g>
+<rect x="200" y="206" width="118" height="56" rx="4" fill="#F1EFE8" stroke="#5F5E5A"/>
+<text x="259" y="230" text-anchor="middle" font-size="13" font-weight="500" fill="#444441">Gemma 4 LLM</text>
+<text x="259" y="248" text-anchor="middle" font-size="11" fill="#5F5E5A">ai-models binding</text>
+</g>
+<g>
+<rect x="568" y="206" width="112" height="56" rx="4" fill="#E1F5EE" stroke="#0F6E56"/>
+<text x="624" y="230" text-anchor="middle" font-size="13" font-weight="500" fill="#085041">postgres MCP</text>
+<text x="624" y="248" text-anchor="middle" font-size="11" fill="#0F6E56">planned add-on</text>
+</g>
+<line x1="124" y1="102" x2="196" y2="102" stroke="#888780" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="162" y="92" text-anchor="middle" font-size="11" fill="#5F5E5A">1 · REST</text>
+<line x1="318" y1="102" x2="384" y2="102" stroke="#888780" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="353" y="92" text-anchor="middle" font-size="11" fill="#5F5E5A">3 · MCP</text>
+<line x1="500" y1="102" x2="564" y2="102" stroke="#888780" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="534" y="92" text-anchor="middle" font-size="11" fill="#5F5E5A">4 · route</text>
+<line x1="259" y1="138" x2="259" y2="202" stroke="#888780" stroke-width="1.5" marker-start="url(#arr)" marker-end="url(#arr)"/>
+<text x="269" y="175" text-anchor="start" font-size="11" fill="#5F5E5A">2 · tools loop</text>
+<path d="M444,138 L444,234 L564,234" fill="none" stroke="#888780" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+<text x="452" y="226" text-anchor="start" font-size="11" fill="#5F5E5A">5 · planned</text>
+</svg>
