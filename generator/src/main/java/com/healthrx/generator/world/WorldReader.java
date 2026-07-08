@@ -138,16 +138,32 @@ public class WorldReader {
      * rather than a random pick among however many therapies happen to be active at once.
      */
     public Optional<TherapyRef> pickMostRecentActiveTherapy() {
-        List<TherapyRef> rows = jdbc.query("""
-                select t.id, t.patient_id, t.current_refill_due_date, p.primary_owner_id as owner_id,
-                       coalesce((select f.days_supply from fills f where f.therapy_id = t.id
-                                 and f.status = 'DISPENSED' order by f.fill_number desc limit 1), 30) as days_supply
-                from therapies t join patients p on p.id = t.patient_id
-                where t.status = 'ACTIVE'
-                order by t.created_at desc limit 1""",
+        List<TherapyRef> rows = jdbc.query(activeTherapySelect("order by t.created_at desc limit 1"),
                 (rs, i) -> new TherapyRef(uuid(rs, "id"), uuid(rs, "patient_id"),
                         rs.getObject("current_refill_due_date", LocalDate.class),
                         rs.getInt("days_supply"), uuid(rs, "owner_id")));
         return rows.stream().findFirst();
+    }
+
+    /**
+     * A specific therapy, but only if it is still ACTIVE. resolve-risk uses this to re-target the
+     * exact therapy send-at-risk flagged, so the two clicks can't drift onto different patients.
+     */
+    public Optional<TherapyRef> findActiveTherapyById(UUID therapyId) {
+        List<TherapyRef> rows = jdbc.query(activeTherapySelect("and t.id = ? limit 1"),
+                (rs, i) -> new TherapyRef(uuid(rs, "id"), uuid(rs, "patient_id"),
+                        rs.getObject("current_refill_due_date", LocalDate.class),
+                        rs.getInt("days_supply"), uuid(rs, "owner_id")),
+                therapyId);
+        return rows.stream().findFirst();
+    }
+
+    private static String activeTherapySelect(String tail) {
+        return """
+                select t.id, t.patient_id, t.current_refill_due_date, p.primary_owner_id as owner_id,
+                       coalesce((select f.days_supply from fills f where f.therapy_id = t.id
+                                 and f.status = 'DISPENSED' order by f.fill_number desc limit 1), 30) as days_supply
+                from therapies t join patients p on p.id = t.patient_id
+                where t.status = 'ACTIVE' """ + tail;
     }
 }

@@ -44,6 +44,10 @@ public class FinancialAssistanceAdjudicator {
     private final Map<String, Decision> decisionsByReferral = new ConcurrentHashMap<>();
     private final AtomicInteger distinctSeen = new AtomicInteger(0);
     private final Deque<Decision> recent = new ArrayDeque<>();
+    // Bumped on every reset. A decide() call captures it before its latency sleep; if it changed
+    // by the time the call records its outcome, the call straddled a demo reset and must NOT touch
+    // the fresh state (see decide()).
+    private final AtomicInteger generation = new AtomicInteger(0);
     private final boolean simulateLatency;
 
     public FinancialAssistanceAdjudicator() {
@@ -60,6 +64,7 @@ public class FinancialAssistanceAdjudicator {
             return cached;
         }
 
+        int gen = generation.get();
         int h = Math.abs(referralNumber.hashCode());
 
         // Simulated review latency (deterministic per referral, ~0.6-1.1s).
@@ -72,25 +77,36 @@ public class FinancialAssistanceAdjudicator {
             }
         }
 
-        // Warm-up: the first two distinct referrals seen (post start/reset) always approve.
-        boolean warmup = distinctSeen.incrementAndGet() <= 2;
-        boolean denied = !warmup && h % 4 == 0;
+        // Record the outcome under the same lock reset() holds, so the generation check is atomic
+        // with a reset rather than racing the multi-second sleep above.
+        synchronized (this) {
+            if (generation.get() != gen) {
+                // Straddled a demo reset: answer this (now-stale) caller from the previous run, but
+                // don't burn a warm-up slot, memoize, or log — otherwise the rerun's reused referral
+                // number inherits a stale decision or a spent warm-up slot.
+                return build(referralNumber, medication, copayAmount, h, h % 4 == 0, turnaround);
+            }
+            Decision current = decisionsByReferral.get(referralNumber);
+            if (current != null) {
+                return current; // a racing caller for the same number already decided it
+            }
+            boolean warmup = distinctSeen.incrementAndGet() <= 2;
+            Decision decision = build(referralNumber, medication, copayAmount, h, !warmup && h % 4 == 0, turnaround);
+            decisionsByReferral.put(referralNumber, decision);
+            remember(decision);
+            return decision;
+        }
+    }
 
-        Decision decision = new Decision(
+    private Decision build(String referralNumber, String medication, Integer copayAmount, int h,
+            boolean denied, long turnaround) {
+        return new Decision(
                 referralNumber, "BridgeFund Patient Assistance", medication,
                 denied ? "DENIED" : "APPROVED",
                 denied ? null : securedAmount(h, copayAmount),
                 denied ? DENIAL_REASONS.get(h % DENIAL_REASONS.size()) : null,
                 REVIEWERS.get(h % REVIEWERS.size()),
                 turnaround, Instant.now());
-
-        // Racing callers for a brand-new referral number settle on whichever decision wins the
-        // map insert, so every caller (and the log) sees one consistent, cached answer.
-        Decision winner = decisionsByReferral.merge(referralNumber, decision, (existing, ignored) -> existing);
-        if (winner == decision) {
-            remember(decision);
-        }
-        return winner;
     }
 
     public synchronized List<Decision> recentDecisions() {
@@ -99,6 +115,7 @@ public class FinancialAssistanceAdjudicator {
 
     /** Forgets all submission history — paired with HealthRx's demo reset so reruns behave identically. */
     public synchronized void reset() {
+        generation.incrementAndGet();
         decisionsByReferral.clear();
         distinctSeen.set(0);
         recent.clear();

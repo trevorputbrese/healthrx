@@ -57,6 +57,24 @@ public class AccessAgentService {
         this.mapper = mapper;
     }
 
+    /**
+     * Why a run ended — lets the stuck-scan decide whether to suppress the episode (it was
+     * genuinely handled or no longer applies) or leave it eligible for the next scan (a transient
+     * guard skipped it). Suppressing a transient skip is the bug in
+     * {@code StuckScanService}: a rate cap / in-flight / pause race would otherwise mark a
+     * still-stuck referral "already seen" forever.
+     */
+    public enum RunOutcome {
+        /** Full triage ran (or emit-repair fired) — suppress the episode and count it against the cap. */
+        TRIAGED,
+        /** Already handled or no longer applicable (recommendation exists, open task, ghost) — suppress, no cap cost. */
+        ALREADY_SETTLED,
+        /** Another run holds this referral right now — skip it this pass but keep it eligible next scan. */
+        DEFERRED,
+        /** Paused or rate-capped — no further work is possible this pass; stop and retry next scan. */
+        STOP
+    }
+
     /** Event-triggered triage of a brand-new referral. */
     public void onReferralCreated(EventEnvelope env) {
         Map<String, Object> p = env.payload() == null ? Map.of() : env.payload();
@@ -72,34 +90,34 @@ public class AccessAgentService {
     }
 
     /** Scan-triggered triage of a stuck referral (episode identity supplied by the scanner). */
-    public void onStuckEpisode(UUID episodeId, UUID referralId, UUID patientId, String rule) {
+    public RunOutcome onStuckEpisode(UUID episodeId, UUID referralId, UUID patientId, String rule) {
         UUID recommendationId = AgentIds.recommendationId(props.name(), episodeId);
-        run(recommendationId, episodeId, "StuckReferralScan/" + rule, referralId, patientId,
+        return run(recommendationId, episodeId, "StuckReferralScan/" + rule, referralId, patientId,
                 "stuck referral: " + rule, () -> true);
     }
 
-    private void run(UUID recommendationId, UUID triggerId, String triggerType, UUID referralId,
+    private RunOutcome run(UUID recommendationId, UUID triggerId, String triggerType, UUID referralId,
             UUID patientId, String reason, java.util.function.BooleanSupplier waitStep) {
         if (!inFlightReferrals.add(referralId)) {
             log.info("Run already in flight for referral {} — skipping", referralId);
-            return;
+            return RunOutcome.DEFERRED;
         }
         try {
             if (guards.paused()) {
                 log.info("Agent paused — skipping {}", referralId);
-                return;
+                return RunOutcome.STOP;
             }
             if (guards.recommendationExists(recommendationId)) {
                 log.info("Recommendation {} already recorded — nothing to do", recommendationId);
-                return;
+                return RunOutcome.ALREADY_SETTLED;
             }
             if (guards.openAgentTask(referralId)) {
                 repairOrSkip(referralId);
-                return;
+                return RunOutcome.ALREADY_SETTLED;
             }
             if (!rate.tryAcquire()) {
                 log.warn("Rate cap hit — skipping triage for referral {}", referralId);
-                return;
+                return RunOutcome.STOP;
             }
             if (!waitStep.getAsBoolean()) {
                 log.warn("Trigger {} not visible in processed_events within timeout — proceeding", triggerId);
@@ -107,7 +125,7 @@ public class AccessAgentService {
             if (!guards.referralExists(referralId)) {
                 log.info("Referral {} does not exist (duplicate-skip or not yet applied) — no triage",
                         referralId);
-                return;
+                return RunOutcome.ALREADY_SETTLED;
             }
 
             TraceRecorder trace = new TraceRecorder();
@@ -131,6 +149,7 @@ public class AccessAgentService {
                     triage, trace.steps());
             log.info("Recommendation {} auto-applied (task {}) for referral {}",
                     recommendationId, taskId, referralId);
+            return RunOutcome.TRIAGED;
         } finally {
             inFlightReferrals.remove(referralId);
         }

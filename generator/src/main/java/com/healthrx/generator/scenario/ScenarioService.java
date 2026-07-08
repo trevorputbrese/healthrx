@@ -30,6 +30,13 @@ public class ScenarioService {
     private final EventPublisher publisher;
     private final Random rnd = new Random();
 
+    /**
+     * The therapy the last send-at-risk flagged. resolve-risk re-targets this exact therapy so the
+     * two clicks stay on the same patient even if another therapy is activated between them. Single
+     * presenter, single generator instance, so a plain volatile field is enough.
+     */
+    private volatile UUID lastAtRiskTherapyId;
+
     public ScenarioService(SimulationClock clock, WorldReader world, EventPublisher publisher) {
         this.clock = clock;
         this.world = world;
@@ -125,6 +132,7 @@ public class ScenarioService {
             return 0;
         }
         TherapyRef t = therapy.get();
+        lastAtRiskTherapyId = t.id(); // resolve-risk re-targets this exact therapy
         LocalDate missedDate = LocalDate.ofInstant(now, ZoneOffset.UTC).minusDays(2);
         // Overdue refill.
         Map<String, Object> miss = new HashMap<>();
@@ -143,7 +151,13 @@ public class ScenarioService {
     }
 
     private int resolveRisk(Instant now) {
-        Optional<TherapyRef> therapy = world.pickMostRecentActiveTherapy();
+        // Prefer the exact therapy send-at-risk flagged (if it's still active); only fall back to
+        // "most recent active" when there was no prior send-at-risk this session or it's gone.
+        UUID targeted = lastAtRiskTherapyId;
+        Optional<TherapyRef> therapy = (targeted != null
+                ? world.findActiveTherapyById(targeted)
+                : Optional.<TherapyRef>empty())
+                .or(world::pickMostRecentActiveTherapy);
         if (therapy.isEmpty()) {
             return 0;
         }

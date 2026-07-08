@@ -63,6 +63,9 @@ export function useReferral(id: string | undefined) {
     queryKey: ['referral', id],
     queryFn: () => api.get<ReferralDetail>(`/api/referrals/${id}`),
     enabled: !!id,
+    // Poll like the other live views: an agent or scenario can move this referral's status
+    // (and its milestones/history, all in this payload) while the detail page is open.
+    refetchInterval: LIVE,
   });
 }
 

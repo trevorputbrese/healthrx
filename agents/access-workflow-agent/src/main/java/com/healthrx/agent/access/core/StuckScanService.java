@@ -90,9 +90,25 @@ public class StuckScanService {
                     continue;
                 }
                 log.info("Newly-stuck referral {} ({}) — triaging", s.referralId(), s.rule());
-                agent.onStuckEpisode(episodeId, s.referralId(), s.patientId(), s.rule());
-                baseline.add(s.episodeKey());
-                budget--;
+                // Only suppress the episode when the run actually reached a terminal outcome. A
+                // transient skip (rate cap, pause, another run in flight) must leave it eligible so
+                // the next scan retries it — otherwise a still-stuck referral is silently baselined.
+                AccessAgentService.RunOutcome outcome =
+                        agent.onStuckEpisode(episodeId, s.referralId(), s.patientId(), s.rule());
+                switch (outcome) {
+                    case TRIAGED -> {
+                        baseline.add(s.episodeKey());
+                        budget--;
+                    }
+                    case ALREADY_SETTLED -> baseline.add(s.episodeKey());
+                    case DEFERRED -> log.info("Referral {} held by another run — retrying next scan",
+                            s.referralId());
+                    case STOP -> {
+                        log.info("Scan halted (paused or rate-capped); {} still-stuck referral(s) "
+                                + "retry next scan", stuck.size());
+                        return;
+                    }
+                }
             }
         } catch (Exception e) {
             log.error("Stuck scan failed (will retry next interval)", e);

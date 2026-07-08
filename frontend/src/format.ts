@@ -8,10 +8,27 @@ export function money(n: number | undefined | null, cents = false): string {
   return (cents ? MONEY_CENTS : MONEY).format(n);
 }
 
+/**
+ * Parse a backend date string for display. A bare `YYYY-MM-DD` (a Java LocalDate — patient DOB,
+ * refill/start dates, trend-bucket months) must be read as a LOCAL calendar date: `new Date('2026-06-01')`
+ * parses as UTC midnight, which `toLocaleDateString` then renders as the PREVIOUS day (or month)
+ * in any timezone west of UTC. Building the Date from its parts avoids the shift. Full timestamps
+ * (with a `T`) are real instants and parse as-is.
+ */
+function parseDisplayDate(iso: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(iso);
+}
+
 export function dateOnly(iso: string | undefined | null): string {
   if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  return parseDisplayDate(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+/** Month + 2-digit year for a date-only string (e.g. a trend bucket's start), timezone-safe. */
+export function monthYear(iso: string | undefined | null): string {
+  if (!iso) return '—';
+  return parseDisplayDate(iso).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
 }
 
 export function dateTime(iso: string | undefined | null): string {

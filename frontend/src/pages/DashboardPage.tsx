@@ -12,7 +12,7 @@ import {
   YAxis,
 } from 'recharts';
 import { useDashboardSummary, useDashboardTrends, useLookups, type DashboardParams } from '../api/hooks';
-import { days, money, percent, STATUS_LABELS } from '../format';
+import { days, money, monthYear, percent, STATUS_LABELS } from '../format';
 import { Card, StateBlock, Tile } from '../components/ui';
 import type { ReferralStatus, TrendBucket } from '../api/types';
 
@@ -175,7 +175,7 @@ function Trends({ series }: { series: TrendBucket[] }) {
   const data = useMemo(
     () =>
       series.map((b) => ({
-        label: new Date(b.from).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        label: monthYear(b.from),
         Received: b.referralsReceived,
         Activated: b.activatedTherapies,
         'Time to therapy (d)': b.medianTimeToTherapyDays ?? null,
