@@ -10,7 +10,7 @@ These four aren't switches with an on/off state — they're **one-shot triggers*
 
 **Advance a referral** — picks a random referral that's currently *in flight* and pushes it one step forward along its access-milestone path (`ELIGIBILITY_IDENTIFIED` → `BENEFITS_INVESTIGATION` → `PRIOR_AUTH_SUBMITTED`, or `FINANCIAL_ASSISTANCE_REVIEW` → `READY_TO_FILL` → `DELIVERY_SCHEDULED` → `ACTIVE_THERAPY`). It's random *which* referral gets picked, so you may need to click it a few times or watch the queue to see which row moved. **It never picks a referral sitting in `PRIOR_AUTH_SUBMITTED` or `PRIOR_AUTH_APPROVED`** — those two moments are real external decisions (the payer, a patient-assistance foundation), so only the Access Workflow Agent and the Financial Assistance Agent ever move a referral out of them; there is no coin flip anywhere in HealthRx standing in for an outside company's decision.
 
-**Send at-risk** — targets **whichever active therapy was created most recently** (see "Starting from an empty queue" below — since the queue starts empty, this is normally whatever referral you last walked to `Active therapy`). It fires three events: a missed refill (backdated 2 days, so the therapy goes overdue) plus two unsuccessful outreach attempts (a no-answer call, a left-message text). Per the refill-risk rules, that trips *both* HIGH-risk conditions at once — overdue refill and repeated failed outreach — which is why the patient's risk badge jumps straight to **HIGH**. If there's no active therapy yet at all, it does nothing (`emitted: 0`).
+**Send at-risk** — targets **whichever active therapy was created most recently**. Since July 2026, **Reset demo seeds two referrals already at `Active therapy`** (RX-10001 and RX-10002, walked histories, one dispensed fill each), so this button works immediately after a reset — RX-10002's therapy is the newer one, so it's targeted first, leaving RX-10001 for a second run. It fires three events: a missed refill (backdated 2 days, so the therapy goes overdue) plus two unsuccessful outreach attempts (a no-answer call, a left-message text). Per the refill-risk rules, that trips *both* HIGH-risk conditions at once — overdue refill and repeated failed outreach — which is why the patient's risk badge jumps straight to **HIGH**. If there's no active therapy at all (both seeded ones cancelled and none walked up), it does nothing (`emitted: 0`).
 
 **Resolve risk** — the payback for the above, on the same targeted patient: a dispensed fill (clears the overdue condition), a `REACHED` phone outreach, and an `ADHERENCE_COUNSELING` intervention (together clear the failed-outreach condition). With both conditions cleared, risk drops back to **LOW**. This is also literally what the Adherence Risk Agent does automatically when you approve its recommendation — same three actions, agent-driven instead of scripted.
 
@@ -87,18 +87,20 @@ mounted yet. Architecture sketch: [docs/chat-assistant-architecture.svg](docs/ch
 
 ---
 
-# Starting from an empty queue (added July 2026)
+# Starting from a near-empty queue (updated July 2026)
 
-**Reset demo** now leaves the referral queue completely empty — zero referrals, zero therapies. Patients, clinics, medications, payers, and care team members are still fully seeded (80 patients, ready for `new-referral` to pick from); only the referral lifecycle itself starts blank, so the presenter builds up every referral they use live, on stage, instead of narrating a pile of pre-existing rows.
+**Reset demo** leaves the referral queue empty **except for two seeded referrals already at `Active therapy`** (RX-10001, RX-10002 — the two lowest-MRN patients, full walked status histories, linked therapies, one dispensed 30-day fill each). They exist so the adherence-risk flow (`send-at-risk`) has a target immediately after a reset, with no setup walk. Their therapies start 7 and 6 sim-days before the reset clock, so their risk reads LOW ("new therapy" on the PDC side) until you fire the scenario — and there's about three sim-weeks of clock runway before natural refill-due pressure would surface on its own.
 
-**To get a referral all the way to `Active therapy`** (a prerequisite for `send-at-risk`, since that button needs an active therapy to act on):
+Everything else starts blank: patients, clinics, medications, payers, and care team members are fully seeded (80 patients, ready for `new-referral` to pick from), and the access-workflow story is still built live on stage from `new-referral`.
+
+**To walk another referral to `Active therapy` yourself** (optional — for a third at-risk run, or to show the full lifecycle):
 
 1. `new-referral` — creates one at `Eligibility identified`; the Access Workflow Agent triages it and routes an intake task to **My Tasks** within a few seconds.
 2. **Complete & advance** that task (or advance the referral to `Benefits investigation` from the queue/referral page, or click `submit-prior-auth` as the zero-touch shortcut) — the Access Workflow Agent runs the benefits check, submits the PA, contacts ClearPath, and records the decision; if approved, the Financial Assistance Agent follows within seconds and lands it at `Ready to fill` either way. One touch total (both agents must be resumed).
-3. `advance-referral` twice (or the manual status dropdown on the referral detail page) — `Ready to fill` → `Delivery scheduled` → `Active therapy`. With only one or two referrals in flight, `advance-referral`'s random pick reliably lands on the right one; the manual dropdown is fully deterministic if you want to be sure.
-4. Now `send-at-risk` has something to act on.
+3. `advance-referral` twice (or the manual status dropdown on the referral detail page) — `Ready to fill` → `Delivery scheduled` → `Active therapy`. With only a few referrals in flight, `advance-referral`'s random pick reliably lands on the right one; the manual dropdown is fully deterministic if you want to be sure.
+4. That referral's therapy is now the newest, so `send-at-risk` targets it next.
 
-With an empty starting queue this whole walk is normally just one referral at a time, so `advance-referral`'s randomness isn't really in play — it only matters if you've deliberately got several referrals in flight at once.
+The two seeded active-therapy referrals are invisible to `advance-referral` (there is nothing left to advance them to), so they sit untouched until `send-at-risk` uses them.
 
 ## Other changes for the demo
 
@@ -107,4 +109,4 @@ With an empty starting queue this whole walk is normally just one referral at a 
 - **Agents view**: mission blurbs on each agent card, plain-English statuses ("Awaiting approval" / "Acted autonomously"), narrated traces with the raw MCP calls collapsed behind "raw call", and new feed entries flash.
 - **Queue rows flash amber** when their status changes between polls — agent- and simulation-driven movement is visible without anyone clicking.
 
-**Suggested demo arc, from an empty queue:** Reset demo → resume all three agents → `new-referral` (queue grows from zero; the agent's intake task lands in My Tasks) → **Complete & advance** the intake task → watch the ticker + queue flash as the referral chains by itself (benefits check → PA submitted → ClearPath approval → a financial-assistance decision if this one needed it), expand the feed entries, show the ClearPath and BridgeFund portal tabs → `advance-referral` a couple of times (or the referral page's manual dropdown) to reach `Active therapy` → `send-at-risk` → approve the Adherence agent's plan → `resolve-risk` closes the story with the risk badge dropping.
+**Suggested demo arc:** Reset demo → resume all three agents → `new-referral` (the agent's intake task lands in My Tasks) → **Complete & advance** the intake task → watch the ticker + queue flash as the referral chains by itself (benefits check → PA submitted → ClearPath approval → a financial-assistance decision if this one needed it), expand the feed entries, show the ClearPath and BridgeFund portal tabs → then the adherence story needs no setup: `send-at-risk` (hits seeded RX-10002) → approve the Adherence agent's plan and watch HIGH drop to LOW — or `resolve-risk` for the scripted no-agent version.

@@ -94,14 +94,13 @@ public class ResetService {
             return null;
         });
 
-        // 3b. The live demo now starts with an empty referral queue — the presenter builds up
-        // all referral-lifecycle material live via the "New referral" scenario button, instead
-        // of starting from a curated seed set (superseded V13 trim). Patients, clinics,
-        // medications, payers, and care team members from step 3 above are untouched; this only
-        // clears the referral lifecycle and everything hung off it. This is NOT a Flyway
-        // migration on purpose — the full seeded lifecycle (V13's curated 14) is still what a
-        // fresh deploy and the integration test suite exercise; only the live "Reset Demo" lever
-        // leaves the queue empty.
+        // 3b. The live demo starts with a near-empty referral queue — the presenter builds the
+        // access-workflow story live via the "New referral" scenario button, instead of starting
+        // from a curated seed set (superseded V13 trim). Patients, clinics, medications, payers,
+        // and care team members from step 3 above are untouched; this only clears the referral
+        // lifecycle and everything hung off it. This is NOT a Flyway migration on purpose — the
+        // full seeded lifecycle (V13's curated 14) is still what a fresh deploy and the
+        // integration test suite exercise; only the live "Reset Demo" lever produces this state.
         clearReferralLifecycle();
 
         // 4. Restore the non-human actors (seeded by V3/V4, not in the V2 seed script).
@@ -119,6 +118,15 @@ public class ResetService {
                     values (?, ?, 'AI Agent', null, true, ?) on conflict (id) do nothing""",
                     agent.actorId(), agent.displayName(), anchorTs);
         }
+
+        // 4b. Seed two referrals already at ACTIVE_THERAPY (walked history, linked therapy, one
+        // dispensed 30-day fill each) so "Send at-risk" has a target immediately after a reset —
+        // without them the adherence-risk flow needs a full referral walk first. Runs after the
+        // actor restore above: the walked history rows are attributed to the SYSTEM actor.
+        // Therapies start 7/6 sim-days before the anchor: young enough that PDC still reads
+        // "new therapy" (dormant until 14 days of history), covered long enough that risk stays
+        // LOW until the scenario is fired.
+        seedActiveTherapyReferrals(anchorTs);
 
         // 5. Pause both agents (they resume explicitly from the Agents view; design §2 guardrail 5).
         for (AgentName agent : AgentName.values()) {
@@ -153,6 +161,92 @@ public class ResetService {
         jdbc.update("delete from clinical_interventions where referral_id is not null");
         jdbc.update("delete from referrals");
         jdbc.update("delete from therapies");
+    }
+
+    /** The canonical walk a seeded active-therapy referral shows in its timeline. */
+    private record HistoryStep(String from, String to, int daysBeforeAnchor, String event) {
+    }
+
+    private static final java.util.List<HistoryStep> SEEDED_WALK = java.util.List.of(
+            new HistoryStep(null, "ELIGIBILITY_IDENTIFIED", 12, "ReferralCreated"),
+            new HistoryStep("ELIGIBILITY_IDENTIFIED", "BENEFITS_INVESTIGATION", 11, "BenefitsInvestigationStarted"),
+            new HistoryStep("BENEFITS_INVESTIGATION", "PRIOR_AUTH_SUBMITTED", 10, "PriorAuthorizationSubmitted"),
+            new HistoryStep("PRIOR_AUTH_SUBMITTED", "PRIOR_AUTH_APPROVED", 9, "PriorAuthorizationApproved"),
+            new HistoryStep("PRIOR_AUTH_APPROVED", "READY_TO_FILL", 9, "ReadyToFill"),
+            new HistoryStep("READY_TO_FILL", "DELIVERY_SCHEDULED", 8, "DeliveryScheduled"),
+            new HistoryStep("DELIVERY_SCHEDULED", "ACTIVE_THERAPY", 7, "TherapyActivated"));
+
+    /**
+     * Two deterministic patients (lowest MRNs with a disease-matched medication), each given a
+     * referral pre-walked to ACTIVE_THERAPY: full status history, a linked ACTIVE therapy, and
+     * one dispensed 30-day fill. The second therapy is created a sim-day later so send-at-risk
+     * (which targets the most recently created active therapy) picks it first, leaving the
+     * other as a second run. Referral numbers RX-10001/RX-10002 keep the max+1 minting intact.
+     */
+    private void seedActiveTherapyReferrals(OffsetDateTime anchor) {
+        var patients = jdbc.queryForList("""
+                select p.id as patient_id, p.primary_owner_id, p.clinic_id, p.payer_id,
+                       (select m.id from medications m where m.disease_state = p.disease_state
+                        order by m.name limit 1) as medication_id
+                from patients p
+                where exists (select 1 from medications m where m.disease_state = p.disease_state)
+                order by p.demo_mrn limit 2""");
+
+        for (int i = 0; i < patients.size(); i++) {
+            var row = patients.get(i);
+            java.util.UUID patientId = (java.util.UUID) row.get("patient_id");
+            java.util.UUID ownerId = (java.util.UUID) row.get("primary_owner_id");
+            java.util.UUID clinicId = (java.util.UUID) row.get("clinic_id");
+            java.util.UUID payerId = (java.util.UUID) row.get("payer_id");
+            java.util.UUID medicationId = (java.util.UUID) row.get("medication_id");
+            java.util.UUID referralId = java.util.UUID.randomUUID();
+            java.util.UUID therapyId = java.util.UUID.randomUUID();
+            // Patient B runs one sim-day behind patient A, so B's therapy is the newest.
+            int lag = patients.size() - 1 - i;
+            OffsetDateTime active = anchor.minusDays(SEEDED_WALK.get(6).daysBeforeAnchor() + lag);
+
+            jdbc.update("""
+                    insert into referrals (id, referral_number, patient_id, clinic_id, medication_id,
+                        payer_id, owner_id, current_status, priority, received_at,
+                        benefits_investigation_started_at, pa_required, pa_submitted_at, pa_decided_at,
+                        financial_assistance_required, ready_to_fill_at, delivery_scheduled_at,
+                        active_therapy_at, created_at, updated_at)
+                    values (?, ?, ?, ?, ?, ?, ?, 'ACTIVE_THERAPY', ?, ?, ?, true, ?, ?, false,
+                        ?, ?, ?, ?, ?)""",
+                    referralId, "RX-1000" + (i + 1), patientId, clinicId, medicationId, payerId,
+                    ownerId, i == 0 ? "MEDIUM" : "HIGH",
+                    anchor.minusDays(12 + lag), anchor.minusDays(11 + lag), anchor.minusDays(10 + lag),
+                    anchor.minusDays(9 + lag), anchor.minusDays(9 + lag), anchor.minusDays(8 + lag),
+                    active, anchor.minusDays(12 + lag), active);
+
+            jdbc.update("""
+                    insert into therapies (id, patient_id, medication_id, diagnosis, disease_state,
+                        status, start_date, current_refill_due_date, created_at)
+                    select ?, ?, m.id, m.disease_state, m.disease_state, 'ACTIVE', ?, ?, ?
+                    from medications m where m.id = ?""",
+                    therapyId, patientId, active.toLocalDate(), active.toLocalDate().plusDays(30),
+                    active, medicationId);
+            jdbc.update("update referrals set therapy_id = ? where id = ?", therapyId, referralId);
+
+            for (HistoryStep step : SEEDED_WALK) {
+                jdbc.update("""
+                        insert into referral_status_history (id, referral_id, from_status, to_status,
+                            changed_at, changed_by_id, note, phase2_event_type)
+                        values (?, ?, ?, ?, ?, ?, ?, ?)""",
+                        java.util.UUID.randomUUID(), referralId, step.from(), step.to(),
+                        anchor.minusDays(step.daysBeforeAnchor() + lag), SystemActors.SYSTEM,
+                        "TherapyActivated".equals(step.event()) ? "Seeded by demo reset — ready for the at-risk scenario." : null,
+                        step.event());
+            }
+
+            jdbc.update("""
+                    insert into fills (id, patient_id, therapy_id, referral_id, fill_number, status,
+                        dispensed_at, days_supply, expected_refill_date, created_at)
+                    values (?, ?, ?, ?, 1, 'DISPENSED', ?, 30, ?, ?)""",
+                    java.util.UUID.randomUUID(), patientId, therapyId, referralId,
+                    active.toLocalDate(), active.toLocalDate().plusDays(30), active);
+        }
+        log.info("Seeded {} active-therapy referrals for the at-risk scenario", patients.size());
     }
 
     private void resetPartner(RestClient client, String label) {

@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -16,10 +18,17 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import com.healthrx.domain.RefillRiskLevel;
 import com.healthrx.domain.SystemActors;
+import com.healthrx.metric.RefillRiskCalculator;
+import com.healthrx.service.RefillRiskService;
 import com.healthrx.service.ResetService;
 
-/** Verifies the one-click reset wipes mutated state and restores the deterministic seed + clock. */
+/**
+ * Verifies the one-click reset wipes mutated state and restores the deterministic seed + clock,
+ * leaving the demo's starting world: an otherwise-empty queue with two pre-walked active-therapy
+ * referrals so "Send at-risk" is usable immediately.
+ */
 @SpringBootTest(properties = {
         "healthrx.events.consumer.enabled=false",
         "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration"
@@ -39,6 +48,8 @@ class ResetServiceIT {
 
     @Autowired
     ResetService reset;
+    @Autowired
+    RefillRiskService riskService;
     @Autowired
     JdbcTemplate jdbc;
 
@@ -65,12 +76,13 @@ class ResetServiceIT {
 
         reset.resetDemo();
 
-        // Patients/reference data restored, but the referral queue starts empty — the presenter
-        // builds it up live via the "New referral" scenario button.
-        assertThat(count("referrals")).isZero();
+        // Patients/reference data restored. The queue holds only the two seeded active-therapy
+        // referrals (send-at-risk targets); the access-workflow story is still built live via
+        // the "New referral" scenario button.
+        assertThat(count("referrals")).isEqualTo(2);
         assertThat(count("patients")).isEqualTo(80);
-        assertThat(count("therapies")).isZero();
-        assertThat(count("fills")).isZero();
+        assertThat(count("therapies")).isEqualTo(2);
+        assertThat(count("fills")).isEqualTo(2);
         assertThat(count("processed_events")).isZero();
         // 8 seeded care team members + System, Care Agent, and the three Phase 3 agent actors.
         assertThat(count("care_team_members")).isEqualTo(13);
@@ -90,5 +102,47 @@ class ResetServiceIT {
         assertThat(jdbc.queryForObject("select ambient_enabled from simulation_state where id = 1", Boolean.class)).isTrue();
         assertThat(jdbc.queryForObject("select current_instant from simulation_state where id = 1", OffsetDateTime.class)
                 .toInstant()).isEqualTo(Instant.parse("2026-06-29T00:00:00Z"));
+    }
+
+    @Test
+    void resetSeedsTwoActiveTherapyReferralsReadyForAtRisk() {
+        reset.resetDemo();
+
+        List<Map<String, Object>> referrals = jdbc.queryForList(
+                "select referral_number, current_status, therapy_id from referrals order by referral_number");
+        assertThat(referrals).hasSize(2);
+        assertThat(referrals).extracting(r -> r.get("referral_number"))
+                .containsExactly("RX-10001", "RX-10002");
+        assertThat(referrals).allSatisfy(r -> {
+            assertThat(r.get("current_status")).isEqualTo("ACTIVE_THERAPY");
+            assertThat(r.get("therapy_id")).isNotNull();
+        });
+
+        assertThat(jdbc.queryForObject("""
+                select count(*) from therapies
+                where status = 'ACTIVE' and current_refill_due_date is not null""", Long.class))
+                .isEqualTo(2);
+        assertThat(jdbc.queryForObject(
+                "select count(*) from fills where status = 'DISPENSED'", Long.class)).isEqualTo(2);
+        // Full walked timeline per referral (created -> active therapy), attributed to SYSTEM.
+        assertThat(jdbc.queryForObject(
+                "select count(*) from referral_status_history", Long.class)).isEqualTo(14);
+
+        // Both therapies read LOW at the anchor clock: young enough that PDC is dormant, covered
+        // by the seeded fill, refill not yet due — send-at-risk is what flips them HIGH.
+        List<UUID> therapyIds = jdbc.queryForList("select id from therapies", UUID.class);
+        Map<UUID, RefillRiskCalculator.Result> risk = riskService.computeForTherapyIds(therapyIds);
+        assertThat(risk).hasSize(2);
+        assertThat(risk.values()).allSatisfy(r -> assertThat(r.level()).isEqualTo(RefillRiskLevel.LOW));
+    }
+
+    @Test
+    void resetIsRepeatable() {
+        reset.resetDemo();
+        reset.resetDemo();
+
+        assertThat(count("referrals")).isEqualTo(2);
+        assertThat(count("therapies")).isEqualTo(2);
+        assertThat(count("patients")).isEqualTo(80);
     }
 }
